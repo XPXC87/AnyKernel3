@@ -78,7 +78,7 @@ jobs:
 
           if [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
             echo "This is the SukiSU variant"
-            git clone --branch "${{ inputs.upstream_channel == 'testing' && 'dev' || 'main' }}" https://github.com/SukiSU-Ultra/SukiSU-Ultra.git KernelSU
+            git clone --branch "${{ inputs.upstream_channel == 'testing' && 'builtin' || 'main' }}" https://github.com/SukiSU-Ultra/SukiSU-Ultra.git KernelSU
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             echo "This is the BakaSU variant"
             git clone https://github.com/Baka-SU/BakaSU.git KernelSU
@@ -123,7 +123,7 @@ jobs:
             echo "SukiSU..."
             REPO="SukiSU-Ultra/SukiSU-Ultra"
             KSUM="manager"
-            EXPECTED_BRANCH="${{ inputs.upstream_channel == 'testing' && 'dev' || 'main' }}"
+            EXPECTED_BRANCH="${{ inputs.upstream_channel == 'testing' && 'builtin' || 'main' }}"
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             echo "BakaSU..."
             REPO="Baka-SU/BakaSU"
