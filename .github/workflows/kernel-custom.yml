@@ -17,8 +17,8 @@ on:
         description: "GKI Commit SHA (留空自动跟随当前分支)"
         required: false
         type: string
-      ksu_upstream_sha:
-        description: "KernelSU Commit SHA (留空按通道自动选择)"
+      sukisu_upstream_sha:
+        description: "SukiSU Commit SHA (仅 SukiSU 生效；留空按通道选择分支)"
         required: false
         type: string
       susfs_upstream_sha:
@@ -424,7 +424,7 @@ jobs:
       ksu_variant: ${{ inputs.kernelsu_variant }}
       upstream_channel: ${{ inputs.upstream_channel }}
       gki_upstream_sha: ${{ inputs.gki_upstream_sha }}
-      ksu_upstream_sha: ${{ inputs.ksu_upstream_sha }}
+      sukisu_upstream_sha: ${{ inputs.sukisu_upstream_sha }}
       susfs_upstream_sha: ${{ inputs.susfs_upstream_sha }}
       # 内核侧 KernelSU 检出到官方最新上传 Manager 构建的同一提交，
       # 使内核 KSU 版本与拉取的管理器安装包严格一致（BakaSU / FinaSU 生效）
