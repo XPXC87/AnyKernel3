@@ -200,6 +200,14 @@ on:
           - FinaSU
         default: BakaSU
 
+      kernelsu_commit_sha:
+        description: "KernelSU Commit SHA（留空使用原有逻辑）"
+        required: false
+        type: string
+      susfs_commit_sha:
+        description: "SUSFS Commit SHA（留空使用原有逻辑）"
+        required: false
+        type: string
       # ==================== 可选配置 ====================
       version:
         description: "自定义版本名 (可选)"
@@ -404,6 +412,8 @@ jobs:
       os_patch_level: ${{ needs.resolve-version.outputs.os_patch_level }}
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
+      kernelsu_commit_sha: ${{ inputs.kernelsu_commit_sha }}
+      susfs_commit_sha: ${{ inputs.susfs_commit_sha }}
       # 内核侧 KernelSU 检出到官方最新上传 Manager 构建的同一提交，
       # 使内核 KSU 版本与拉取的管理器安装包严格一致（BakaSU / FinaSU 生效）
       ksu_commit: ${{ needs.get-ksu-manager.outputs.ksuCommit }}
