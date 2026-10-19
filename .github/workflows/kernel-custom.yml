@@ -7,6 +7,24 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
+      upstream_channel:
+        description: "上游通道 (Stable 保留现有固定配置；Testing 使用上游最新)"
+        required: true
+        type: choice
+        options: [stable, testing]
+        default: stable
+      gki_upstream_sha:
+        description: "GKI Commit SHA (留空自动跟随当前分支)"
+        required: false
+        type: string
+      ksu_upstream_sha:
+        description: "KernelSU Commit SHA (留空按通道自动选择)"
+        required: false
+        type: string
+      susfs_upstream_sha:
+        description: "SUSFS Commit SHA (留空按通道自动选择)"
+        required: false
+        type: string
       # ==================== 内核版本配置 ====================
       kernel_version:
         description: "内核版本"
@@ -404,6 +422,10 @@ jobs:
       os_patch_level: ${{ needs.resolve-version.outputs.os_patch_level }}
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
+      upstream_channel: ${{ inputs.upstream_channel }}
+      gki_upstream_sha: ${{ inputs.gki_upstream_sha }}
+      ksu_upstream_sha: ${{ inputs.ksu_upstream_sha }}
+      susfs_upstream_sha: ${{ inputs.susfs_upstream_sha }}
       # 内核侧 KernelSU 检出到官方最新上传 Manager 构建的同一提交，
       # 使内核 KSU 版本与拉取的管理器安装包严格一致（BakaSU / FinaSU 生效）
       ksu_commit: ${{ needs.get-ksu-manager.outputs.ksuCommit }}
