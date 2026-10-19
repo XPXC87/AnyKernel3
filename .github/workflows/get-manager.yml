@@ -9,6 +9,10 @@ on:
       kernelsu_variant:
         required: true
         type: string
+      kernelsu_commit_sha:
+        required: false
+        type: string
+        default: ""
     outputs:
       susVer:
         description: "The fetched SUSFS version number"
@@ -109,13 +113,14 @@ jobs:
 
       - name: 添加 KernelSU
         id: add_KSU
-        continue-on-error: true
+        continue-on-error: ${{ inputs.kernelsu_commit_sha == '' }}
         run: |
           if [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
             echo "SukiSU..."
             REPO="SukiSU-Ultra/SukiSU-Ultra"
             KSUM="manager"
             EXPECTED_BRANCH="main"
+            if [ -n "${{ inputs.kernelsu_commit_sha }}" ]; then EXPECTED_BRANCH="builtin"; fi
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             echo "BakaSU..."
             REPO="Baka-SU/BakaSU"
