@@ -30,6 +30,14 @@ on:
       ksu_variant:
         required: true
         type: string
+      kernelsu_commit_sha:
+        required: false
+        type: string
+        default: ""
+      susfs_commit_sha:
+        required: false
+        type: string
+        default: ""
       ksu_commit:
         description: "BakaSU 专用：KernelSU 检出到该提交以对齐官方最新上传构建（留空跟随 main HEAD）"
         required: false
@@ -297,6 +305,13 @@ jobs:
             fi
           fi
 
+          REQUESTED_SUSFS_SHA="${{ inputs.susfs_commit_sha }}"
+          if [ -n "$REQUESTED_SUSFS_SHA" ]; then
+            [[ "$REQUESTED_SUSFS_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::SUSFS SHA 必须是完整 40 位"; exit 1; }
+            git -C susfs4ksu fetch origin "$REQUESTED_SUSFS_SHA" || { echo "::error::无法获取 SUSFS 提交"; exit 1; }
+            git -C susfs4ksu checkout --detach "$REQUESTED_SUSFS_SHA" || exit 1
+          fi
+
           SUSFS_LATEST_COMMIT_DATE=$(git -C susfs4ksu log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
           echo "SUSFS_LATEST_COMMIT_DATE=$SUSFS_LATEST_COMMIT_DATE" >> $GITHUB_ENV
           echo "SUSFS 仓库最新提交日期: $SUSFS_LATEST_COMMIT_DATE"
@@ -472,6 +487,12 @@ jobs:
                 echo "SukiSU 使用自定义提交: $SUKISU_COMMIT"
               fi
             fi
+          fi
+
+          REQUESTED_KERNELSU_SHA="${{ inputs.kernelsu_commit_sha }}"
+          if [ -n "$REQUESTED_KERNELSU_SHA" ]; then
+            [[ "$REQUESTED_KERNELSU_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::KernelSU SHA 必须是完整 40 位"; exit 1; }
+            BRANCH="-s $REQUESTED_KERNELSU_SHA"
           fi
 
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
