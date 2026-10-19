@@ -482,7 +482,7 @@ jobs:
               ;;
             "SukiSU")
               if [ "${{ inputs.upstream_channel }}" = "testing" ]; then
-                BRANCH="-s dev"
+                BRANCH="-s builtin"
               else
                 BRANCH="-s main"
               fi
