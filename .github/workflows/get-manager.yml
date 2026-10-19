@@ -120,7 +120,6 @@ jobs:
             REPO="SukiSU-Ultra/SukiSU-Ultra"
             KSUM="manager"
             EXPECTED_BRANCH="main"
-            if [ -n "${{ inputs.kernelsu_commit_sha }}" ]; then EXPECTED_BRANCH="builtin"; fi
           elif [ "${{ inputs.kernelsu_variant }}" == "BakaSU" ]; then
             echo "BakaSU..."
             REPO="Baka-SU/BakaSU"
