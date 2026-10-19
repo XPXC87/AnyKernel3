@@ -281,15 +281,12 @@ jobs:
           git clone https://github.com/WildKernels/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           rm -rf AnyKernel3/.git
 
-          echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
-          if [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
-            if ! git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH" 2>/dev/null; then
-              echo "ShirkNeko 仓库未找到分支 $SUSFS_BRANCH，回退到 simonpunk 原版..."
-              git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-            fi
-          else
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          fi
+          echo "克隆官方 SUSFS (GKI: $SUSFS_BRANCH)..."
+          git clone -b "$SUSFS_BRANCH" https://gitlab.com/simonpunk/susfs4ksu.git || {
+            echo "::error::官方 SUSFS 不支持所选 GKI 分支 $SUSFS_BRANCH"
+            exit 1
+          }
+          SUSFS_BRANCH_HEAD="$(git -C susfs4ksu rev-parse HEAD)"
 
           CONFIG_FILE="config/config"
           if [ -f "$CONFIG_FILE" ]; then
@@ -311,6 +308,15 @@ jobs:
             git -C susfs4ksu fetch origin "$REQUESTED_SUSFS_SHA" || { echo "::error::无法获取 SUSFS 提交"; exit 1; }
             git -C susfs4ksu checkout --detach "$REQUESTED_SUSFS_SHA" || exit 1
           fi
+
+          SELECTED_SUSFS_SHA="$(git -C susfs4ksu rev-parse HEAD)"
+          if ! git -C susfs4ksu merge-base --is-ancestor "$SELECTED_SUSFS_SHA" "$SUSFS_BRANCH_HEAD"; then
+            echo "::error::自定义 SUSFS SHA 不属于所选 GKI 分支 $SUSFS_BRANCH"
+            exit 1
+          fi
+          SUSFS_PATCH="kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch"
+          test -s "susfs4ksu/$SUSFS_PATCH" || { echo "::error::所选 SUSFS 提交缺少对应 GKI 补丁 $SUSFS_PATCH"; exit 1; }
+          echo "SUSFS $SUSFS_BRANCH commit: $SELECTED_SUSFS_SHA"
 
           SUSFS_LATEST_COMMIT_DATE=$(git -C susfs4ksu log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
           echo "SUSFS_LATEST_COMMIT_DATE=$SUSFS_LATEST_COMMIT_DATE" >> $GITHUB_ENV
