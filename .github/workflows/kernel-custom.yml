@@ -402,7 +402,7 @@ jobs:
     name: "${{ needs.resolve-version.outputs.kernel_full }}-${{ needs.resolve-version.outputs.android_version }}-${{ needs.resolve-version.outputs.os_patch_level }}"
     needs: [resolve-version, get-ksu-manager]
     # 管理器拉取失败时不阻塞内核构建（ksuCommit 为空则内核跟随 main HEAD）
-    if: ${{ !cancelled() && needs.resolve-version.result == 'success' }}
+    if: ${{ !cancelled() && needs.resolve-version.result == 'success' && (inputs.kernelsu_commit_sha == '' || needs.get-ksu-manager.result == 'success') }}
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
@@ -440,3 +440,4 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      kernelsu_commit_sha: ${{ inputs.kernelsu_commit_sha }}
