@@ -481,13 +481,10 @@ jobs:
               BRANCH="-s master"
               ;;
             "SukiSU")
-              if [ "${{ inputs.enable_susfs }}" = "false" ]; then
-                BRANCH="-s main"
-              else
-                BRANCH="-s builtin"
-              fi
               if [ "${{ inputs.upstream_channel }}" = "testing" ]; then
                 BRANCH="-s dev"
+              else
+                BRANCH="-s main"
               fi
               ;;
             *)
