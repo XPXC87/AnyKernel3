@@ -675,11 +675,15 @@ jobs:
               exit 1
             fi
             echo "KernelSU 提交尚未集成 SUSFS，尝试应用所选 GKI 版本的官方集成补丁"
-            if ! git -C KernelSU apply --check "$INTEGRATION_PATCH"; then
-              echo "::error::SUSFS 集成补丁与此 KernelSU main 提交不兼容；已停止，避免产生部分修改的内核"
+            if git -C KernelSU apply --check "$INTEGRATION_PATCH"; then
+              git -C KernelSU apply "$INTEGRATION_PATCH"
+            elif git -C KernelSU apply --3way --check "$INTEGRATION_PATCH"; then
+              echo "普通补丁上下文不匹配，使用 Git 三方合并恢复补丁基准"
+              git -C KernelSU apply --3way "$INTEGRATION_PATCH"
+            else
+              echo "::error::所选 SUSFS GKI 集成补丁无法直接应用或三方合并到当前 SukiSU main 提交；不自动改用 builtin，也不强制部分应用"
               exit 1
             fi
-            git -C KernelSU apply "$INTEGRATION_PATCH"
           fi
           if ! grep -qE '^[[:space:]]*config[[:space:]]+KSU_SUSFS([[:space:]]|$)' "$KCONFIG"; then
             echo "::error::应用 SUSFS 集成补丁后仍缺少 CONFIG_KSU_SUSFS"
