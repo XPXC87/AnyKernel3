@@ -7,12 +7,6 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      upstream_channel:
-        description: "上游通道 (Stable 保留现有固定配置；Testing 使用上游最新)"
-        required: true
-        type: choice
-        options: [stable, testing]
-        default: stable
       gki_upstream_sha:
         description: "GKI Commit SHA (留空自动跟随当前分支)"
         required: false
@@ -422,7 +416,6 @@ jobs:
       os_patch_level: ${{ needs.resolve-version.outputs.os_patch_level }}
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
-      upstream_channel: ${{ inputs.upstream_channel }}
       gki_upstream_sha: ${{ inputs.gki_upstream_sha }}
       sukisu_upstream_sha: ${{ inputs.sukisu_upstream_sha }}
       susfs_upstream_sha: ${{ inputs.susfs_upstream_sha }}
@@ -452,5 +445,4 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
-      upstream_channel: ${{ inputs.upstream_channel }}
       sukisu_upstream_sha: ${{ inputs.sukisu_upstream_sha }}
