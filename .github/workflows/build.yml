@@ -26,6 +26,23 @@ on:
         required: true
         type: string
 
+      upstream_channel:
+        description: "Stable 使用原有配置；Testing 跟随上游最新分支"
+        required: false
+        type: string
+        default: "stable"
+      gki_upstream_sha:
+        required: false
+        type: string
+        default: ""
+      ksu_upstream_sha:
+        required: false
+        type: string
+        default: ""
+      susfs_upstream_sha:
+        required: false
+        type: string
+        default: ""
       # ==================== KernelSU 配置 ====================
       ksu_variant:
         required: true
@@ -283,6 +300,12 @@ jobs:
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           fi
 
+          REQUESTED_SUSFS_SHA="${{ inputs.susfs_upstream_sha }}"
+          if [ -n "$REQUESTED_SUSFS_SHA" ]; then
+            [[ "$REQUESTED_SUSFS_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::SUSFS SHA 必须是完整 40 位哈希"; exit 1; }
+            git -C susfs4ksu fetch origin "$REQUESTED_SUSFS_SHA" || { echo "::error::SUSFS SHA 无法获取"; exit 1; }
+            git -C susfs4ksu checkout --detach "$REQUESTED_SUSFS_SHA" || exit 1
+          elif [ "${{ inputs.upstream_channel }}" = "stable" ]; then
           CONFIG_FILE="config/config"
           if [ -f "$CONFIG_FILE" ]; then
             CUSTOM_ENABLED=$(grep "^custom=" "$CONFIG_FILE" | cut -d'=' -f2)
@@ -297,6 +320,7 @@ jobs:
             fi
           fi
 
+          fi
           SUSFS_LATEST_COMMIT_DATE=$(git -C susfs4ksu log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
           echo "SUSFS_LATEST_COMMIT_DATE=$SUSFS_LATEST_COMMIT_DATE" >> $GITHUB_ENV
           echo "SUSFS 仓库最新提交日期: $SUSFS_LATEST_COMMIT_DATE"
@@ -356,6 +380,14 @@ jobs:
           if [ "$SYNC_OK" != "true" ]; then
             echo "::error::repo sync 连续 3 次尝试均失败（上游连接停滞或不可用）"
             exit 1
+          fi
+          REQUESTED_GKI_SHA="${{ inputs.gki_upstream_sha }}"
+          if [ -n "$REQUESTED_GKI_SHA" ]; then
+            [[ "$REQUESTED_GKI_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::GKI SHA 必须是完整 40 位哈希"; exit 1; }
+            git -C common fetch --no-tags origin "$REQUESTED_GKI_SHA" || { echo "::error::GKI SHA 无法获取"; exit 1; }
+            git -C common cat-file -e "$REQUESTED_GKI_SHA^{commit}" || exit 1
+            git -C common checkout --detach "$REQUESTED_GKI_SHA" || exit 1
+            echo "GKI 固定提交: $(git -C common rev-parse HEAD)"
           fi
           echo "REMOTE_BRANCH=$REMOTE_BRANCH" >> $GITHUB_ENV
 
@@ -461,11 +493,16 @@ jobs:
               ;;
           esac
 
+          REQUESTED_KSU_SHA="${{ inputs.ksu_upstream_sha }}"
+          if [ -n "$REQUESTED_KSU_SHA" ]; then
+            [[ "$REQUESTED_KSU_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::KernelSU SHA 必须是完整 40 位哈希"; exit 1; }
+            BRANCH="-s $REQUESTED_KSU_SHA"
+          fi
           # 检查自定义提交 (仅对 SukiSU 生效)
           CONFIG_FILE="config/config"
           if [ -f "$CONFIG_FILE" ]; then
             CUSTOM_ENABLED=$(grep "^custom=" "$CONFIG_FILE" | cut -d'=' -f2)
-            if [ "$CUSTOM_ENABLED" == "true" ] && [ "$variant_input" == "SukiSU" ]; then
+            if [ -z "$REQUESTED_KSU_SHA" ] && [ "${{ inputs.upstream_channel }}" = "stable" ] && [ "$CUSTOM_ENABLED" == "true" ] && [ "$variant_input" == "SukiSU" ]; then
               SUKISU_COMMIT=$(grep "^sukisu=" "$CONFIG_FILE" | cut -d'=' -f2)
               if [ -n "$SUKISU_COMMIT" ]; then
                 BRANCH="-s $SUKISU_COMMIT"
@@ -480,7 +517,7 @@ jobs:
       - name: 添加 KernelSU
         working-directory: ${{ env.KERNEL_ROOT }}
         env:
-          KSU_COMMIT: ${{ inputs.ksu_commit }}
+          KSU_COMMIT: ${{ inputs.ksu_upstream_sha || inputs.ksu_commit }}
           KSU_CERT_SIZE: ${{ inputs.ksu_cert_size }}
           KSU_CERT_HASH: ${{ inputs.ksu_cert_hash }}
         run: |
