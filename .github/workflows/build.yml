@@ -662,16 +662,30 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
-      - name: 验证自定义 KernelSU 提交的 SUSFS Kconfig 支持
+      - name: 整合 SukiSU main 的 SUSFS 内核补丁并验证
         if: inputs.enable_susfs && inputs.ksu_variant == 'SukiSU'
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
+          set -euo pipefail
           KCONFIG="KernelSU/kernel/Kconfig"
-          if [ ! -f "$KCONFIG" ] || ! grep -qE '^[[:space:]]*config[[:space:]]+KSU_SUSFS([[:space:]]|$)' "$KCONFIG"; then
-            echo "::error::当前 KernelSU 提交未定义 CONFIG_KSU_SUSFS；SUSFS 构建必须使用支持 SUSFS 的 SukiSU builtin 提交。请检查填写的 KernelSU SHA 是否来自 builtin 分支。"
+          if ! grep -qE '^[[:space:]]*config[[:space:]]+KSU_SUSFS([[:space:]]|$)' "$KCONFIG"; then
+            INTEGRATION_PATCH="$SUSFS4KSU/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
+            if [ ! -s "$INTEGRATION_PATCH" ]; then
+              echo "::error::选定的 SUSFS GKI 提交缺少 KernelSU 集成补丁: $INTEGRATION_PATCH"
+              exit 1
+            fi
+            echo "KernelSU 提交尚未集成 SUSFS，尝试应用所选 GKI 版本的官方集成补丁"
+            if ! git -C KernelSU apply --check "$INTEGRATION_PATCH"; then
+              echo "::error::SUSFS 集成补丁与此 KernelSU main 提交不兼容；已停止，避免产生部分修改的内核"
+              exit 1
+            fi
+            git -C KernelSU apply "$INTEGRATION_PATCH"
+          fi
+          if ! grep -qE '^[[:space:]]*config[[:space:]]+KSU_SUSFS([[:space:]]|$)' "$KCONFIG"; then
+            echo "::error::应用 SUSFS 集成补丁后仍缺少 CONFIG_KSU_SUSFS"
             exit 1
           fi
-          echo "KernelSU Kconfig 已声明 SUSFS，继续编译"
+          echo "KernelSU SUSFS Kconfig 已验证"
 
       # FinaSU master 在 susfs4ksu 官方集成补丁基准后有结构性提交，
       # 上游 10_enable 补丁需配合本仓库维护的 drift-fixes 才能命中，
