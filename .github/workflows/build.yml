@@ -656,6 +656,17 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
+      - name: 验证自定义 KernelSU 提交的 SUSFS Kconfig 支持
+        if: inputs.enable_susfs && inputs.ksu_variant == 'SukiSU'
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: |
+          KCONFIG="KernelSU/kernel/Kconfig"
+          if [ ! -f "$KCONFIG" ] || ! grep -qE '^[[:space:]]*config[[:space:]]+KSU_SUSFS([[:space:]]|$)' "$KCONFIG"; then
+            echo "::error::当前 KernelSU 提交未定义 CONFIG_KSU_SUSFS；SUSFS 构建必须使用支持 SUSFS 的 SukiSU builtin 提交。请检查填写的 KernelSU SHA 是否来自 builtin 分支。"
+            exit 1
+          fi
+          echo "KernelSU Kconfig 已声明 SUSFS，继续编译"
+
       # FinaSU master 在 susfs4ksu 官方集成补丁基准后有结构性提交，
       # 上游 10_enable 补丁需配合本仓库维护的 drift-fixes 才能命中，
       # 详见 scripts/finasu_compat/apply.sh 头部说明
