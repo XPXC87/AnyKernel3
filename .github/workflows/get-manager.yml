@@ -128,6 +128,12 @@ jobs:
             EXPECTED_BRANCH="master"
           fi
 
+          REQUESTED_SHA="${{ inputs.kernelsu_commit_sha }}"
+          if [ -n "$REQUESTED_SHA" ]; then
+            [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::KernelSU SHA 必须是完整 40 位"; exit 1; }
+            REQUESTED_SHA="${REQUESTED_SHA,,}"
+          fi
+
           FILENAME="build-manager.yml"
 
           if [ "${{ inputs.kernelsu_variant }}" == "FinaSU" ]; then
@@ -229,6 +235,9 @@ jobs:
                 HEAD_BRANCH=$(printf '%s' "$RUNS" | jq -r ".workflow_runs[$INDEX].head_branch")
                 EVENT=$(printf '%s' "$RUNS" | jq -r ".workflow_runs[$INDEX].event")
                 CREATED=$(printf '%s' "$RUNS" | jq -r ".workflow_runs[$INDEX].created_at")
+                if [ -n "$REQUESTED_SHA" ] && [ "${HEAD_SHA,,}" != "$REQUESTED_SHA" ]; then
+                  continue
+                fi
                 # 认领官方默认分支上传的构建（push 与 workflow_dispatch 均可，
                 # 手动触发常用于正式上传前测试），跳过 PR / 其他分支构建
                 #（SukiSU/BakaSU 为 main，FinaSU 为 master）
