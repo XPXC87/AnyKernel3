@@ -452,3 +452,5 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      upstream_channel: ${{ inputs.upstream_channel }}
+      sukisu_upstream_sha: ${{ inputs.sukisu_upstream_sha }}
