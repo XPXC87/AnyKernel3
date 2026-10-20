@@ -315,7 +315,26 @@ jobs:
           FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
           echo "初始化 repo，分支: common-${FORMATTED_BRANCH}"
 
-          $REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
+          # Manifest 服务器偶发 HTTP 503：只重试初始化，不更换分支或来源。
+          INIT_OK=false
+          for INIT_ATTEMPT in 1 2 3 4 5; do
+            echo "==> repo init 第 ${INIT_ATTEMPT}/5 次尝试"
+            if timeout --kill-after=15 5m "$REPO" init --depth=1 \
+              -u https://android.googlesource.com/kernel/manifest \
+              -b "common-${FORMATTED_BRANCH}" --repo-rev=v2.16; then
+              INIT_OK=true
+              break
+            fi
+            if [ "$INIT_ATTEMPT" -lt 5 ]; then
+              WAIT_SECONDS=$((15 * (1 << (INIT_ATTEMPT - 1))))
+              echo "::warning title=repo init 重试::Manifest 下载失败或超时，${WAIT_SECONDS} 秒后重试"
+              sleep "$WAIT_SECONDS"
+            fi
+          done
+          if [ "$INIT_OK" != "true" ]; then
+            echo "::error::repo init 连续 5 次失败，请检查 android.googlesource.com/kernel/manifest 上游服务"
+            exit 1
+          fi
 
           REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
           DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
@@ -344,7 +363,7 @@ jobs:
           SYNC_OK=false
           for SYNC_ATTEMPT in 1 2 3; do
             echo "==> repo sync 第 ${SYNC_ATTEMPT}/3 次尝试"
-            if timeout --kill-after=30 20m $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast; then
+            if timeout --kill-after=30 20m "$REPO" --trace sync -c -j8 --no-tags --fail-fast; then
               SYNC_OK=true
               break
             fi
