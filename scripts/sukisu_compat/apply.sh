@@ -100,7 +100,7 @@ fi
 # 保留过滤器（"过滤模式"），仅通过 seccomp action cache（GKI 5.10+ backport）
 # 放行 reboot。
 # 处理：改写 lsm_hook.c 的 6 处 disable_seccomp() 调用点为 cache-allow 形式，
-# 分发 infra/seccomp_cache.c/h 并在 ksu.c 聚合编译；>=5.10 保留过滤器，
+# 分发 infra/seccomp_cache.c/h 并在 ksu.c（上游重构后为 ksu_main.c）聚合编译；>=5.10 保留过滤器，
 # <5.10 维持 disable_seccomp() 原行为（action cache 不存在）。
 # 守卫：仅命中 builtin 的 handle_zygote_setresuid 时执行，main 分支自动跳过；
 # 上游自行修复后幂等跳过。
@@ -118,8 +118,17 @@ if [ -f "$LSM_FILE" ] && grep -q 'handle_zygote_setresuid' "$LSM_FILE"; then
       || fail "seccomp 过滤模式补丁应用失败（SukiSU builtin 上游代码可能已变化）"
     grep -q 'ksu_seccomp_allow_cache' "$LSM_FILE" \
       || fail "seccomp 过滤模式补丁应用后校验失败 (lsm_hook.c)"
-    grep -q '#include "infra/seccomp_cache.c"' "$KSU_DIR/kernel/ksu.c" \
-      || fail "seccomp 过滤模式补丁应用后校验失败 (ksu.c)"
+    # 聚合编译文件随上游重构更名（kernel/ksu.c -> kernel/ksu_main.c），按实际路径校验
+    KSU_AGG=""
+    for cand in kernel/ksu.c kernel/ksu_main.c; do
+      if [ -f "$KSU_DIR/$cand" ]; then
+        KSU_AGG="$KSU_DIR/$cand"
+        break
+      fi
+    done
+    if [ -z "$KSU_AGG" ] || ! grep -q '#include "infra/seccomp_cache.c"' "$KSU_AGG"; then
+      fail "seccomp 过滤模式补丁应用后校验失败 (聚合编译文件 ksu.c/ksu_main.c)"
+    fi
     grep -q '#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)' "$KSU_DIR/kernel/infra/seccomp_cache.c" \
       || fail "seccomp_cache.c 版本守卫校验失败"
     echo "seccomp 过滤模式已启用：管理器首页 Seccomp 状态将显示\"过滤模式\""

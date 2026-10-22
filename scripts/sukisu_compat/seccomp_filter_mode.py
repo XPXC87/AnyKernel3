@@ -14,8 +14,8 @@
      ">=5.10 保留过滤器并放行 reboot / <5.10 维持 disable_seccomp()"
      (seccomp action cache 由 GKI 5.10+ 内核 backport, 与 BakaSU 一致);
      并在文件头部补 infra/seccomp_cache.h 原型声明。
-  2. kernel/ksu.c: 在 infra/event_queue.c 之后聚合编译
-     infra/seccomp_cache.c (builtin 为单编译单元)。
+  2. 聚合编译文件 (kernel/ksu.c，上游 2026-10-19 重构后更名 kernel/ksu_main.c):
+     在 infra/event_queue.c 之后聚合编译 infra/seccomp_cache.c (builtin 为单编译单元)。
 
 所有替换严格校验命中次数, 上游代码变化时报错退出 (幂等可重入)。
 用法: python3 seccomp_filter_mode.py <KernelSU 目录>
@@ -81,15 +81,24 @@ def patch_lsm(path: Path) -> None:
 def patch_ksu(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     if '#include "infra/seccomp_cache.c"' in text:
-        print("ksu.c: 已包含 seccomp_cache.c 聚合编译，跳过")
+        print(f"{path.name}: 已包含 seccomp_cache.c 聚合编译，跳过")
         return
     text, n = KSU_ANCHOR.subn(
         lambda m: m.group(1) + '#include "infra/seccomp_cache.c"\n', text)
     if n != 1:
-        sys.exit("::error::ksu.c 未找到 infra/event_queue.c 聚合锚点，"
+        sys.exit(f"::error::{path.name} 未找到 infra/event_queue.c 聚合锚点，"
                  "SukiSU builtin 上游代码可能已变化，请更新补丁")
     path.write_text(text, encoding="utf-8")
-    print("ksu.c: 已插入 infra/seccomp_cache.c 聚合编译")
+    print(f"{path.name}: 已插入 infra/seccomp_cache.c 聚合编译")
+
+
+def find_aggregate(kdir: Path) -> Path | None:
+    # 上游 2026-10-19 重构把 kernel/ksu.c 更名为 kernel/ksu_main.c，两者都支持
+    for name in ("ksu.c", "ksu_main.c"):
+        p = kdir / "kernel" / name
+        if p.is_file():
+            return p
+    return None
 
 
 def main() -> None:
@@ -97,10 +106,10 @@ def main() -> None:
         sys.exit(f"用法: {sys.argv[0]} <KernelSU 目录>")
     kdir = Path(sys.argv[1])
     lsm = kdir / "kernel" / "hook" / "lsm_hook.c"
-    ksu = kdir / "kernel" / "ksu.c"
-    for f in (lsm, ksu):
-        if not f.is_file():
-            sys.exit(f"::error::未找到 {f}，SukiSU builtin 目录结构可能已变化")
+    ksu = find_aggregate(kdir)
+    if not lsm.is_file() or ksu is None:
+        sys.exit(f"::error::未找到 {lsm} 或 kernel/{{ksu,ksu_main}}.c，"
+                 "SukiSU builtin 目录结构可能已变化")
     patch_lsm(lsm)
     patch_ksu(ksu)
 
