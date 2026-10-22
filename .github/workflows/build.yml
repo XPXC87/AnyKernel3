@@ -282,14 +282,42 @@ jobs:
           git clone https://github.com/WildKernels/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           rm -rf AnyKernel3/.git
 
+          # SUSFS 上游偶发传输中断（early EOF / invalid index-pack / HTTP 5xx）。
+          # 保留完整历史以支持 config/config 中的自定义 commit，避免浅克隆无法检出旧提交。
+          clone_susfs_with_retry() {
+            local remote="$1" attempt
+            for attempt in 1 2 3 4; do
+              echo "SUSFS 克隆第 ${attempt}/4 次：${remote} (分支: ${SUSFS_BRANCH})"
+              # 失败时 Git 可能留下不完整目录，下一轮必须清除。
+              rm -rf susfs4ksu
+              if timeout --kill-after=15 8m git -c http.version=HTTP/1.1 \
+                  clone --single-branch -b "$SUSFS_BRANCH" "$remote" susfs4ksu; then
+                return 0
+              fi
+              rm -rf susfs4ksu
+              if [ "$attempt" -lt 4 ]; then
+                local wait_seconds=$((15 * attempt))
+                echo "::warning title=SUSFS 克隆重试::第 ${attempt}/4 次失败，等待 ${wait_seconds} 秒"
+                sleep "$wait_seconds"
+              fi
+            done
+            return 1
+          }
+
           echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
           if [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
-            if ! git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH" 2>/dev/null; then
-              echo "ShirkNeko 仓库未找到分支 $SUSFS_BRANCH，回退到 simonpunk 原版..."
-              git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+            if ! clone_susfs_with_retry https://github.com/ShirkNeko/susfs4ksu.git; then
+              echo "ShirkNeko 分支不可用或下载失败，切换 simonpunk 原版..."
+              clone_susfs_with_retry https://gitlab.com/simonpunk/susfs4ksu.git || {
+                echo "::error::SUSFS 两个来源均无法克隆，已完成重试"
+                exit 1
+              }
             fi
           else
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+            clone_susfs_with_retry https://gitlab.com/simonpunk/susfs4ksu.git || {
+              echo "::error::SUSFS 克隆连续失败 4 次"
+              exit 1
+            }
           fi
 
           CONFIG_FILE="config/config"
