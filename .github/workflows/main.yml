@@ -40,7 +40,7 @@ on:
           - SukiSU
           - BakaSU
           - FinaSU
-        default: BakaSU
+        default: SukiSU
 
       # ==================== 可选配置 ====================
       version:
