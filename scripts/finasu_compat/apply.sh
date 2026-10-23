@@ -368,6 +368,44 @@ PYEOF
     grep -n 'FINASU_SUSFS_OWNS_SELINUXFS' "$FINASU_SELINUX_HIDE"
   fi
 
+  # 0c2) SUSFS 主补丁（2026-10-19 起对所有分支生效）在 security/selinux/{hooks,selinuxfs}.c
+  #      内联调用 my_setprocattr / my_write_context / my_write_access（KernelSU-Next 形态），
+  #      要求这三个符号是全局的。FinaSU 的 selinux_hide.c 里有实现，但都是 static；
+  #      10_enable 补丁负责去掉 static 的 3 个 hunk 因结构漂移被拒，符号仍是 static，
+  #      于是 scripts/susfs_fixes/ksu_susfs_hooks.py 探测不到、把调用回落成内核原生函数，
+  #      工作流出现「SUSFS 内联钩子已按 KernelSU 能力裁剪」，SELinux 属性隐藏失效。
+  #      这里只补齐符号可见性：函数体、LSM hook 结构与注册流程全部保持原样
+  #      （ksu_selinux_hide_enable() 已被 0c 提前返回，不会重复安装 hook）。
+  if [ -f "$FINASU_SELINUX_HIDE" ] && grep -q '^static ssize_t my_write_context' "$FINASU_SELINUX_HIDE"; then
+    python3 - "$FINASU_SELINUX_HIDE" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+
+subs = [
+    ("static ssize_t my_write_context(struct file *file, char *buf, size_t size)",
+     "ssize_t my_write_context(struct file *file, char *buf, size_t size)"),
+    ("static ssize_t my_write_access(struct file *file, char *buf, size_t size)",
+     "ssize_t my_write_access(struct file *file, char *buf, size_t size)"),
+    ("static int my_setprocattr(const char *name, void *value, size_t size);",
+     "int my_setprocattr(const char *name, void *value, size_t size);"),
+    ("static int __nocfi my_setprocattr(const char *name, void *value, size_t size)",
+     "int my_setprocattr(const char *name, void *value, size_t size)"),
+]
+for old, new in subs:
+    assert src.count(old) == 1, "selinux_hide.c: anchor not unique: " + old
+    src = src.replace(old, new, 1)
+
+open(path, "w", encoding="utf-8").write(src)
+print("selinux_hide.c: my_setprocattr / my_write_context / my_write_access 已全局化（对齐 SUSFS 内联钩子）")
+PYEOF
+    grep -q '^ssize_t my_write_context' "$FINASU_SELINUX_HIDE" \
+      && grep -q '^ssize_t my_write_access' "$FINASU_SELINUX_HIDE" \
+      && grep -q '^int my_setprocattr' "$FINASU_SELINUX_HIDE" \
+      || { echo "::error::FinaSU selinux_hide.c 的 my_* 符号全局化失败（SUSFS 内联钩子会继续退化）" >&2; exit 1; }
+  fi
+
   # 0d) 保持 seccomp「过滤模式」（与 BakaSU 一致）：simonpunk 的 SUSFS KSU 补丁把
   #     setuid_hook.c 里的 ksu_seccomp_allow_cache(__NR_reboot) 改成了无条件 disable_seccomp()，
   #     于是管理器首页 Seccomp 状态显示“未开启”（0）。BakaSU 的做法是 >=5.10 保留过滤模式、
