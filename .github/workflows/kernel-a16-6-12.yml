@@ -15,7 +15,7 @@ on:
           - SukiSU
           - BakaSU
           - FinaSU
-        default: BakaSU
+        default: SukiSU
       version:
         description: "自定义版本名 (可选)"
         required: false
