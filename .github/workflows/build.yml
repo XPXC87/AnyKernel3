@@ -620,7 +620,8 @@ jobs:
               if ! grep -q 'source "drivers/kernelsu/Kconfig"' "$DRIVER_DIR/Kconfig"; then
                 sed -i "/endmenu/i source \"drivers/kernelsu/Kconfig\"" "$DRIVER_DIR/Kconfig"
               fi
-              # SUSFS 场景下的内核侧集成补丁由 scripts/finasu_compat/apply.sh 在后续步骤应用
+              # SUSFS 场景：上游已树内原生集成，驱动侧无需补丁，
+              # 由 scripts/susfs_fixes/apply.sh 统一校验并应用内核侧主补丁
 
               # 将 FinaSU 官方管理器签名证书注入内核第二信任槽（EXPECTED_SIZE2/HASH2）。
               # 不注入时内核仅信任上游 KernelSU 默认槽，官方 KernelSU 管理器会抢占
@@ -671,6 +672,10 @@ jobs:
                 && grep -q "^KSU_EXPECTED_HASH2 := " KernelSU/kernel/Kbuild \
                 && grep -q "^KSU_SECOND_SIGNATURE_RELEASE := 1" KernelSU/kernel/Kbuild \
                 || { echo "::error::Kbuild 注入失败（锚点行缺失，FinaSU 上游 Kbuild 结构可能已变化）"; exit 1; }
+              # 与 SukiSU/BakaSU 一致：内核完整版本的 @<branch> 固定为品牌名
+              # （CI 检出的是 detached 提交，abbrev-ref 显示 @HEAD）；
+              # 必须在上方证书注入（awk 重写 Kbuild）之后调用
+              bash "$GITHUB_WORKSPACE/scripts/ksu_post_setup.sh" KernelSU finasu
               ;;
             *)
               echo "未知变体: ${{ inputs.ksu_variant }}" >&2
@@ -685,13 +690,9 @@ jobs:
             echo "KSU_LATEST_COMMIT_DATE=未知" >> $GITHUB_ENV
           fi
 
-      # FinaSU master 在 susfs4ksu 官方集成补丁基准后有结构性提交，
-      # 上游 10_enable 补丁需配合本仓库维护的 drift-fixes 才能命中，
-      # 详见 scripts/finasu_compat/apply.sh 头部说明
-      - name: 应用 FinaSU 内核 SUSFS 集成补丁
-        if: inputs.ksu_variant == 'FinaSU' && inputs.enable_susfs
-        working-directory: ${{ env.KERNEL_ROOT }}
-        run: bash "$GITHUB_WORKSPACE/scripts/finasu_compat/apply.sh" KernelSU
+      # FinaSU 的内核侧 SUSFS 集成已并入 scripts/susfs_fixes/apply.sh：
+      # 上游自 5b83330b（2026-10-23）起树内原生集成 SUSFS，与 SukiSU/BakaSU
+      # 同为「驱动侧不打补丁」形态，由「应用 SUSFS 补丁」步骤统一校验并应用
 
       # SukiSU 的 builtin 分支（内建+SUSFS 产品线）与 main 分支相互独立，
       # 官方管理器 APK 始终按 main 分支构建。main 抬升
