@@ -63,6 +63,225 @@ if [ "$KSU_VARIANT" == "FinaSU" ]; then
     exit 1
   fi
 
+  # 0i) SUSFS 补丁重写后的 preinit.c 用内核内部 close_fd(fd) 关闭临时 fd，但
+  #     close_fd() 直到 5.11 才引入（5.10 只有 __close_fd(files, fd)），
+  #     android12-5.10 因此在 preinit.o 上直接编译失败：
+  #       preinit.c:130:9: error: implicit declaration of function 'close_fd'
+  #       [-Werror,-Wimplicit-function-declaration]
+  #     这里按内核版本补一个静态内联包装；>=5.11 时整段被预处理掉，不产生额外代码。
+  FINASU_PREINIT="$FINASU_KSU/preinit/preinit.c"
+  if [ -f "$FINASU_PREINIT" ] && grep -q 'close_fd(fd);' "$FINASU_PREINIT" \
+    && ! grep -q 'FINASU_CLOSE_FD_COMPAT' "$FINASU_PREINIT"; then
+    python3 - "$FINASU_PREINIT" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+
+anchor = '#include "preinit/preinit.h"\n'
+assert src.count(anchor) == 1, "preinit.c: include anchor not unique"
+
+compat = (
+    anchor
+    + "\n#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)\n"
+    + "/* FINASU_CLOSE_FD_COMPAT: close_fd() only exists since 5.11; 5.10 exposes\n"
+    + " * __close_fd(files, fd) instead. Keep the SUSFS preinit code building there. */\n"
+    + "static inline void ksu_preinit_close_fd(unsigned int fd)\n"
+    + "{\n"
+    + "    __close_fd(current->files, fd);\n"
+    + "}\n"
+    + "#define close_fd(fd) ksu_preinit_close_fd(fd)\n"
+    + "#endif\n"
+)
+src = src.replace(anchor, compat, 1)
+open(path, "w", encoding="utf-8").write(src)
+print("preinit.c: 已注入 close_fd() <5.11 兼容包装")
+PYEOF
+    grep -q 'FINASU_CLOSE_FD_COMPAT' "$FINASU_PREINIT" \
+      || { echo "::error::FinaSU preinit.c 的 close_fd() 兼容包装注入失败" >&2; exit 1; }
+  fi
+
+  # 0j) FinaSU 在 setuid_hook.c 里新增了 ksu_uts_view_on_setresuid() 调用，SUSFS 补丁
+  #     针对该文件的整段 hunk（@@ -18,43 +20,138 @@）因此被拒，遗留两个问题：
+  #       1) Kbuild hunk 已移除 hook/tp_marker.o，旧函数体却仍调用
+  #          ksu_clear_task_tracepoint_flag_if_needed() → vmlinux 链接失败：
+  #          ld.lld: error: undefined symbol: ksu_clear_task_tracepoint_flag_if_needed
+  #          >>> referenced by setuid_hook.c:53 (drivers/kernelsu/hook/setuid_hook.c:53)
+  #       2) ksu_handle_setresuid 仍是 2 参数旧签名，而内核侧 kernel/sys.c 已按
+  #          3 参数调用 → SUSFS 的 zygote sid 门控、mount 隐藏标记全部失效
+  #          （setuid 钩子每次都会跑 KSU 自己的 umount 流程）。
+  #     这里按补丁本意重写该函数，保留 FinaSU 的 uts_view 调用，并沿用本仓库
+  #     既有的 seccomp 策略（加入 reboot 白名单，而不是 disable_seccomp() 直接关掉）。
+  FINASU_SETUID="$FINASU_KSU/hook/setuid_hook.c"
+  if [ -f "$FINASU_SETUID" ]; then
+    python3 - "$FINASU_SETUID" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+
+new_sig = "int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)\n"
+if new_sig in src:
+    print("setuid_hook.c: SUSFS 三参数实现已存在，跳过")
+    sys.exit(0)
+
+old_sig = "int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)\n"
+if old_sig not in src:
+    print("setuid_hook.c: 未找到旧版 ksu_handle_setresuid，跳过")
+    sys.exit(0)
+
+# hook/tp_marker.o 已被 SUSFS 补丁移出编译列表，这里同步去掉头文件依赖
+src = src.replace('#include "hook/tp_marker.h"\n', "")
+
+# work_pending()/schedule_work() 需要 workqueue.h（上游 relies on 传递包含）
+if "#include <linux/workqueue.h>" not in src:
+    src = src.replace("#include <linux/version.h>\n",
+                      "#include <linux/version.h>\n#include <linux/workqueue.h>\n", 1)
+
+helpers = '''/* FINASU_SUSFS_SETRESUID: SUSFS 的 zygote 门控实现。
+ * 保留 FinaSU 的 uts_view 调用与 seccomp 过滤模式（不调用 disable_seccomp）。 */
+extern u32 susfs_zygote_sid;
+extern u32 susfs_zygote_next_sid;
+extern struct work_struct susfs_extra_works;
+
+static inline void ksu_handle_extra_susfs_work(void)
+{
+    if (work_pending(&susfs_extra_works))
+        return;
+
+    schedule_work(&susfs_extra_works);
+}
+
+static inline void ksu_allow_reboot_seccomp(void)
+{
+    if (current->seccomp.mode == SECCOMP_MODE_FILTER && current->seccomp.filter) {
+        spin_lock_irq(&current->sighand->siglock);
+        ksu_seccomp_allow_cache(current->seccomp.filter, __NR_reboot);
+        spin_unlock_irq(&current->sighand->siglock);
+    }
+}
+
+static int ksu_handle_zygote_setresuid(uid_t ruid)
+{
+    uid_t old_uid = current_uid().val;
+
+    if (is_isolated_process(ruid)) {
+        susfs_set_current_proc_no_su();
+        susfs_set_current_proc_umounted();
+        goto do_umount;
+    }
+
+    if (likely(ksu_is_manager_appid_valid()) && unlikely(is_uid_manager(ruid))) {
+        ksu_allow_reboot_seccomp();
+        pr_info("install fd for manager: %d\\n", ruid);
+        ksu_install_fd();
+        ksu_uts_view_on_setresuid(old_uid, ruid);
+        return 0;
+    }
+
+    if (likely(is_appuid(ruid) && ksu_uid_should_umount(ruid))) {
+        susfs_set_current_proc_no_su();
+        susfs_set_current_proc_umounted();
+        goto do_umount;
+    }
+
+    if (ksu_is_allow_uid_for_current(ruid)) {
+        ksu_allow_reboot_seccomp();
+        ksu_uts_view_on_setresuid(old_uid, ruid);
+        return 0;
+    }
+
+    susfs_set_current_proc_no_su();
+    ksu_uts_view_on_setresuid(old_uid, ruid);
+    return 0;
+
+do_umount:
+    ksu_handle_umount(old_uid, ruid);
+    ksu_handle_extra_susfs_work();
+    ksu_uts_view_on_setresuid(old_uid, ruid);
+    return 0;
+}
+
+static int ksu_handle_zygote_next_setresuid(uid_t ruid)
+{
+    uid_t old_uid = current_uid().val;
+
+    if (is_isolated_process(ruid)) {
+        susfs_set_current_proc_no_su();
+        susfs_set_current_proc_umounted();
+        susfs_set_current_proc_umounted_for_zygote_next();
+        goto do_susfs_work;
+    }
+
+    if (likely(ksu_is_manager_appid_valid()) && unlikely(is_uid_manager(ruid))) {
+        ksu_allow_reboot_seccomp();
+        pr_info("install fd for manager: %d\\n", ruid);
+        ksu_install_fd();
+        ksu_uts_view_on_setresuid(old_uid, ruid);
+        return 0;
+    }
+
+    if (likely(is_appuid(ruid) && ksu_uid_should_umount(ruid))) {
+        susfs_set_current_proc_no_su();
+        susfs_set_current_proc_umounted();
+        susfs_set_current_proc_umounted_for_zygote_next();
+        goto do_susfs_work;
+    }
+
+    if (ksu_is_allow_uid_for_current(ruid)) {
+        ksu_allow_reboot_seccomp();
+        ksu_uts_view_on_setresuid(old_uid, ruid);
+        return 0;
+    }
+
+    susfs_set_current_proc_no_su();
+    ksu_uts_view_on_setresuid(old_uid, ruid);
+    return 0;
+
+do_susfs_work:
+    /* init 命名空间里不做 umount，交给 susfs 的 workqueue 延后处理 */
+    ksu_handle_extra_susfs_work();
+    ksu_uts_view_on_setresuid(old_uid, ruid);
+    return 0;
+}
+
+int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+{
+    uid_t cur_uid = current_uid().val;
+
+    (void)euid;
+    (void)suid;
+
+    if (cur_uid != 0)
+        return 0;
+
+    // We only interest in process spawned by zygote or zygote_next
+    if (susfs_is_sid_equal(current_cred(), susfs_zygote_sid))
+        return ksu_handle_zygote_setresuid(ruid);
+
+    if (susfs_is_sid_equal(current_cred(), susfs_zygote_next_sid))
+        return ksu_handle_zygote_next_setresuid(ruid);
+
+    return 0;
+}
+'''
+
+start = src.index(old_sig)
+end = src.index("\n}\n", start) + len("\n}\n")
+src = src[:start] + helpers + src[end:]
+open(path, "w", encoding="utf-8").write(src)
+print("setuid_hook.c: 已按 SUSFS 补丁本意重写 ksu_handle_setresuid（三参数 + zygote 门控）")
+PYEOF
+    if ! grep -q '^int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)$' "$FINASU_SETUID"; then
+      echo "::error::FinaSU setuid_hook.c 的 ksu_handle_setresuid 未改写为 SUSFS 三参数实现" >&2
+      exit 1
+    fi
+    if grep -q 'tp_marker\|ksu_clear_task_tracepoint_flag_if_needed' "$FINASU_SETUID"; then
+      echo "::error::FinaSU setuid_hook.c 仍引用已被移出编译列表的 tp_marker 符号" >&2
+      exit 1
+    fi
+  fi
+
   # 0b) SUSFS 内核补丁在 security/selinux/*.c 中以 extern 引用了这些符号，需与 BakaSU 一致
   #     改为全局定义，否则 ThinLTO 链接阶段会报 undefined symbol。
   #     - 6 个通用符号（>=5.10 用到）：
@@ -454,6 +673,7 @@ KSU_KBUILD_EOF
     || ! grep -q '^int security_context_to_sid_with_policy' "$FINASU_SELINUX_HIDE" \
     || ! grep -q '^int security_sid_to_context_with_policy' "$FINASU_SELINUX_HIDE" \
     || ! grep -q '^void security_compute_av_user_with_policy' "$FINASU_SELINUX_HIDE" \
+    || ! grep -q '^int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)$' "$FINASU_SETUID" \
     || ! grep -q '^int ksu_handle_execveat_ksud(int \*fd, struct filename \*\*filename_ptr,' "$FINASU_KSI"; then
     echo "::error::FinaSU 适配修复失败，代码结构可能已变化" >&2
     exit 1
