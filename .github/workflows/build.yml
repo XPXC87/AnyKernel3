@@ -30,6 +30,11 @@ on:
       ksu_variant:
         required: true
         type: string
+      build_channel:
+        description: "构建通道：正式 (Release) 对齐官方发行版；最新 (HEAD) 跟随上游最新提交（仅用于标识与摘要）"
+        required: false
+        type: string
+        default: "正式 (Release)"
       ksu_commit:
         description: "BakaSU 专用：KernelSU 检出到该提交以对齐官方最新上传构建（留空跟随 main HEAD）"
         required: false
@@ -134,6 +139,7 @@ jobs:
           echo "子版本号      : ${{ inputs.sub_level }}"
           echo "补丁级别      : ${{ inputs.os_patch_level }}"
           echo "KSU 变体      : ${{ inputs.ksu_variant }}"
+          echo "构建通道      : ${{ inputs.build_channel }}"
           echo "构建时间      : ${{ inputs.build_time }}"
           echo "SUSFS 状态    : ${{ inputs.enable_susfs }}"
           echo "ZRAM 压缩     : ${{ inputs.use_zram }}"
