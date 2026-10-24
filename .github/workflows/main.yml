@@ -42,6 +42,14 @@ on:
           - FinaSU
         default: SukiSU
 
+      build_channel:
+        description: "构建通道（正式=官方 Release 发行版，最新=上游最新提交）"
+        type: choice
+        options:
+          - "正式 (Release)"
+          - "最新 (HEAD)"
+        default: "正式 (Release)"
+
       # ==================== 可选配置 ====================
       version:
         description: "自定义版本名 (可选)"
@@ -150,6 +158,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
 
   # ==================== Android 12 - 5.10 构建 ====================
   build-a12-5-10:
@@ -160,6 +169,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -187,6 +197,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -214,6 +225,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -241,6 +253,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -268,6 +281,7 @@ jobs:
     secrets: inherit
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
+      build_channel: ${{ inputs.build_channel }}
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -519,6 +533,9 @@ jobs:
           esac
           echo "KSU_BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "BRANCH_INFO=$BRANCH" >> $GITHUB_ENV
+          # 正式通道选用的 Release 标签（最新通道为空）
+          echo "CHANNEL_TAG=${{ needs.get-manager.outputs.channelTag }}" >> $GITHUB_ENV
+          echo "CHANNEL_NAME=${{ inputs.build_channel }}" >> $GITHUB_ENV
 
       # ==================== 获取 KernelSU 提交信息 ====================
       # 获取当前使用的 KernelSU 版本的 Git 提交信息
@@ -537,6 +554,19 @@ jobs:
               KSU_REF="$CUSTOM_COMMIT"
               KSU_URL="https://github.com/$REPO_URL2/commit/$CUSTOM_COMMIT"
               echo "BRANCH_INFO=custom" >> $GITHUB_ENV
+            fi
+          fi
+
+          if [ -z "${KSU_REF:-}" ] && [ -n "${CHANNEL_TAG:-}" ]; then
+            # 正式通道：取 Release 标签指向的提交（annotated tag 优先解引用）
+            COMMIT_HASH=$(git ls-remote $REPO_URL "refs/tags/${CHANNEL_TAG}^{}" | awk '{ print $1 }')
+            if [ -z "$COMMIT_HASH" ]; then
+              COMMIT_HASH=$(git ls-remote $REPO_URL "refs/tags/${CHANNEL_TAG}" | awk '{ print $1 }')
+            fi
+            if [ -n "$COMMIT_HASH" ]; then
+              KSU_REF=$COMMIT_HASH
+              KSU_URL="https://github.com/$REPO_URL2/releases/tag/$CHANNEL_TAG"
+              echo "BRANCH_INFO=release/${CHANNEL_TAG}" >> $GITHUB_ENV
             fi
           fi
 
@@ -627,6 +657,7 @@ jobs:
           | 项目 | 内容 |
           |:---|:---|
           | 发布类型 | ${{ inputs.release_type }} |
+          | 构建通道 | $CHANNEL_NAME |
           | 发布时间 | $BUILD_DATE |
           | 构建范围 | $build_targets |
 
