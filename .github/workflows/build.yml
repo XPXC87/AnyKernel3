@@ -1353,7 +1353,7 @@ jobs:
           EOF
 
           # BakaSU 上游改名后 Kconfig 默认值去掉了 @%REPO_NAME%，显式加回模板，
-          # 配合 ksu_post_setup.sh 的 REPO_NAME := LingLuo 改写，管理器才能显示 @LingLuo 后缀
+          # 配合 ksu_post_setup.sh 的 REPO_NAME := XPXC87 改写，管理器才能显示 @XPXC87 后缀
           if [ "${{ inputs.ksu_variant }}" == "BakaSU" ]; then
             echo 'CONFIG_KSU_FULL_NAME_FORMAT="%TAG_NAME%-%COMMIT_SHA%@%REPO_NAME%"' >> "$DEFCONFIG"
           fi
