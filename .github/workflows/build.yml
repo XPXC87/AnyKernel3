@@ -594,11 +594,6 @@ jobs:
                 echo "KernelSU 已检出到官方上传构建提交 $KSU_COMMIT (KSU 版本 $((30700 + $(git -C KernelSU rev-list --count HEAD))))"
               fi
               bash "$GITHUB_WORKSPACE/scripts/ksu_post_setup.sh" KernelSU bakasu
-              # 上游 BakaSU 自 48fa4bb 起以无条件 $(error) 暂停 SUSFS 内核构建
-              # （等待 simonpunk 同步最新 selinux_hide 模型）。本仓库在 SUSFS 补丁
-              # 阶段已适配该模型（scripts/susfs_fixes/apply.sh），这里替换为上游
-              # 预期的按内核版本门控，详见 scripts/bakasu_compat/resume_susfs.sh
-              bash "$GITHUB_WORKSPACE/scripts/bakasu_compat/resume_susfs.sh" KernelSU
               ;;
             "FinaSU")
               echo "添加 ${{ inputs.ksu_variant }}..."
