@@ -288,34 +288,32 @@ jobs:
           git clone https://github.com/WildKernels/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           rm -rf AnyKernel3/.git
 
-          # SUSFS 仅单次克隆：按需获取历史 blob，降低传输量和 early EOF 风险。
-          # 不使用 --depth=1，保留该分支完整提交历史，支持自定义 commit 检出。
-          clone_susfs_once() {
-            local remote="$1"
-            rm -rf susfs4ksu
-            echo "SUSFS 单次克隆：${remote} (分支: ${SUSFS_BRANCH})"
-            if timeout --kill-after=15 8m git \
-                -c http.version=HTTP/1.1 \
-                clone --filter=blob:none --no-tags --single-branch \
-                -b "$SUSFS_BRANCH" "$remote" susfs4ksu; then
-              return 0
-            fi
-            rm -rf susfs4ksu
+          # 保留完整提交历史（支持自定义 commit）；网络/服务端暂时故障仅有限重试。
+          clone_susfs() {
+            local remote="$1" attempts="${2:-1}"
+            for ((i=1; i<=attempts; i++)); do
+              rm -rf susfs4ksu
+              echo "SUSFS 克隆 ${i}/${attempts}: $remote ($SUSFS_BRANCH)"
+              if timeout --kill-after=15 8m git -c http.version=HTTP/1.1 \
+                  clone --filter=blob:none --no-tags --single-branch \
+                  -b "$SUSFS_BRANCH" "$remote" susfs4ksu; then
+                return 0
+              fi
+              rm -rf susfs4ksu
+              (( i == attempts )) || sleep $((i * 10))
+            done
             return 1
           }
 
           echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
-          if [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
-            if ! clone_susfs_once https://github.com/ShirkNeko/susfs4ksu.git; then
-              echo "ShirkNeko 来源不可用，切换 simonpunk 原版（各来源仅尝试一次）..."
-              clone_susfs_once https://gitlab.com/simonpunk/susfs4ksu.git || {
-                echo "::error::SUSFS 两个来源均克隆失败，未进行重试"
-                exit 1
-              }
-            fi
+          if [ "${{ inputs.ksu_variant }}" == "SukiSU" ] &&
+             git ls-remote --exit-code --heads https://github.com/ShirkNeko/susfs4ksu.git "$SUSFS_BRANCH" >/dev/null 2>&1 &&
+             clone_susfs https://github.com/ShirkNeko/susfs4ksu.git; then
+            echo "使用 ShirkNeko SUSFS"
           else
-            clone_susfs_once https://gitlab.com/simonpunk/susfs4ksu.git || {
-              echo "::error::SUSFS 原版克隆失败，未进行重试"
+            echo "ShirkNeko 分支不可用或克隆失败，使用 simonpunk 原版..."
+            clone_susfs https://gitlab.com/simonpunk/susfs4ksu.git 3 || {
+              echo "::error::SUSFS 原版连续 3 次克隆失败"
               exit 1
             }
           fi
