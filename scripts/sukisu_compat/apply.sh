@@ -77,7 +77,7 @@ if [ -z "$SUPER_REL" ] && [ -d "$KSU_DIR/kernel" ]; then
 fi
 
 if [ -n "$SUPER_REL" ] && grep -q 'DEFINE_MEMBER(netlink_kernel_cfg, cb_mutex)' "$KSU_DIR/$SUPER_REL"; then
-  if grep -q 'KERNEL_VERSION(6, 11, 0)' "$KSU_DIR/$SUPER_REL"; then
+  if grep -qE 'KERNEL_VERSION\(6, 11, 0\)|KSU_NETLINK_CFG_HAS_CB_MUTEX' "$KSU_DIR/$SUPER_REL"; then
     echo "$SUPER_REL 已包含 cb_mutex 版本守卫，跳过"
   else
     echo "应用 cb_mutex 兼容补丁 (6.11+ 移除 netlink_kernel_cfg.cb_mutex, 目标 $SUPER_REL)..."
