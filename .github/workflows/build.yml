@@ -715,7 +715,7 @@ jobs:
       # （该文件已被上游迁至 kernel/extension/kpm/，补丁按实际路径定位）。
       # 补丁内部以 LINUX_VERSION_CODE 守卫，6.10 及以下内核行为不变，
       # SukiSU 上游修复后按内容检测自动跳过。
-      - name: 应用 SukiSU 内核 API 兼容补丁 (6.8+ lsm_id / 6.11+ netlink cb_mutex)
+      - name: 应用 SukiSU 内核 API 兼容补丁 (6.8+ lsm_id)
         if: inputs.ksu_variant == 'SukiSU'
         working-directory: ${{ env.KERNEL_ROOT }}
         run: bash "$GITHUB_WORKSPACE/scripts/sukisu_compat/apply.sh" KernelSU
@@ -932,19 +932,29 @@ jobs:
             exit 1
           }
 
-          echo "自动选择 NTSync 补丁: ${NTSYNC_PATCH}.patch"
-          if ! wget -q "https://raw.githubusercontent.com/Goldzxcbug/Droidspaces_Kernel_patch/refs/heads/main/NTsync/ntsync_base.patch"; then
-            ntsync_fail "NTSync 基础补丁下载失败"
-          fi
-          if ! wget -q "https://raw.githubusercontent.com/Goldzxcbug/Droidspaces_Kernel_patch/refs/heads/main/NTsync/${NTSYNC_PATCH}.patch"; then
-            ntsync_fail "NTSync 平台补丁 ${NTSYNC_PATCH}.patch 下载失败"
+          NTSYNC_PATCH_URL="https://raw.githubusercontent.com/Goldzxcbug/Droidspaces_Kernel_patch/refs/heads/main/NTsync"
+
+          if [[ -f drivers/misc/ntsync.c && -f include/uapi/linux/ntsync.h ]]; then
+            echo "NTSync 源码已存在（主线自带），跳过基础补丁"
+          elif [[ ! -e drivers/misc/ntsync.c && ! -e include/uapi/linux/ntsync.h ]]; then
+            wget -q "${NTSYNC_PATCH_URL}/ntsync_base.patch" ||
+              ntsync_fail "NTSync 基础补丁下载失败"
+            patch --batch --forward -p1 < ntsync_base.patch ||
+              ntsync_fail "NTSync 基础补丁应用失败（可能不兼容当前内核）"
+          else
+            ntsync_fail "NTSync 源码不完整（驱动与 uapi 头文件不匹配）"
           fi
 
-          if ! patch -p1 < "ntsync_base.patch"; then
-            ntsync_fail "NTSync 基础补丁应用失败（可能不兼容当前内核）"
-          fi
-          if ! patch -p1 < "${NTSYNC_PATCH}.patch"; then
-            ntsync_fail "NTSync 平台补丁应用失败（可能不兼容当前内核）"
+          # 平台补丁：Kconfig/Makefile 已集成且未被标 BROKEN 时跳过。
+          if grep -q '^config NTSYNC$' drivers/misc/Kconfig &&
+             grep -Fq 'obj-$(CONFIG_NTSYNC)' drivers/misc/Makefile &&
+             ! grep -A4 '^config NTSYNC$' drivers/misc/Kconfig | grep -q 'depends on BROKEN'; then
+            echo "NTSync 已集成，跳过平台补丁"
+          else
+            wget -q "${NTSYNC_PATCH_URL}/${NTSYNC_PATCH}.patch" ||
+              ntsync_fail "NTSync 平台补丁 ${NTSYNC_PATCH}.patch 下载失败"
+            patch --batch --forward -p1 < "${NTSYNC_PATCH}.patch" ||
+              ntsync_fail "NTSync 平台补丁应用失败（可能不兼容当前内核）"
           fi
 
           cd ..
