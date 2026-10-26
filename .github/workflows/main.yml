@@ -48,7 +48,7 @@ on:
         options:
           - "正式 (Release)"
           - "最新 (HEAD)"
-        default: "正式 (Release)"
+        default: "最新 (HEAD)"
 
       # ==================== 可选配置 ====================
       version:
