@@ -288,14 +288,22 @@ jobs:
           git clone https://github.com/WildKernels/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           rm -rf AnyKernel3/.git
 
-          # 保留完整提交历史（支持自定义 commit）；网络/服务端暂时故障仅有限重试。
+          # 普通构建只拉最新快照；自定义提交保留历史。
+          CUSTOM_COMMIT=""
+          if [ -f config/config ] && [ "$(sed -n 's/^custom=//p' config/config | head -n1)" = "true" ]; then
+            CUSTOM_COMMIT=$(grep "^${SUSFS_BRANCH}=" config/config | cut -d= -f2)
+          fi
+
+          # 失败后清理并有限重试。
           clone_susfs() {
             local remote="$1" attempts="${2:-1}"
+            local clone_opts=(--depth=1)
+            [ -z "$CUSTOM_COMMIT" ] || clone_opts=(--filter=blob:none)
             for ((i=1; i<=attempts; i++)); do
               rm -rf susfs4ksu
               echo "SUSFS 克隆 ${i}/${attempts}: $remote ($SUSFS_BRANCH)"
               if timeout --kill-after=15 8m git -c http.version=HTTP/1.1 \
-                  clone --filter=blob:none --no-tags --single-branch \
+                  clone "${clone_opts[@]}" --no-tags --single-branch \
                   -b "$SUSFS_BRANCH" "$remote" susfs4ksu; then
                 return 0
               fi
@@ -318,18 +326,9 @@ jobs:
             }
           fi
 
-          CONFIG_FILE="config/config"
-          if [ -f "$CONFIG_FILE" ]; then
-            CUSTOM_ENABLED=$(grep "^custom=" "$CONFIG_FILE" | cut -d'=' -f2)
-            if [ "$CUSTOM_ENABLED" == "true" ]; then
-              CUSTOM_COMMIT=$(grep "^${SUSFS_BRANCH}=" "$CONFIG_FILE" | cut -d'=' -f2)
-              if [ -n "$CUSTOM_COMMIT" ]; then
-                echo "切换 SUSFS 到自定义提交: $CUSTOM_COMMIT"
-                cd susfs4ksu
-                git checkout "$CUSTOM_COMMIT"
-                cd ..
-              fi
-            fi
+          if [ -n "$CUSTOM_COMMIT" ]; then
+            echo "切换 SUSFS 到自定义提交: $CUSTOM_COMMIT"
+            git -C susfs4ksu checkout "$CUSTOM_COMMIT"
           fi
 
           SUSFS_LATEST_COMMIT_DATE=$(git -C susfs4ksu log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
