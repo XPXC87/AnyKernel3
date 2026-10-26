@@ -307,7 +307,7 @@ jobs:
 
           echo "克隆 SUSFS (分支: $SUSFS_BRANCH)..."
           if [ "${{ inputs.ksu_variant }}" == "SukiSU" ] &&
-             git ls-remote --exit-code --heads https://github.com/ShirkNeko/susfs4ksu.git "$SUSFS_BRANCH" >/dev/null 2>&1 &&
+             timeout 30s git ls-remote --exit-code --heads https://github.com/ShirkNeko/susfs4ksu.git "$SUSFS_BRANCH" >/dev/null 2>&1 &&
              clone_susfs https://github.com/ShirkNeko/susfs4ksu.git; then
             echo "使用 ShirkNeko SUSFS"
           else
