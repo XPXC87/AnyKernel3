@@ -138,7 +138,7 @@ else
 fi
 
 # SukiSU builtin 的 profile v2 -> v3 迁移必须继续执行 case 3。
-# 部分 GKI Clang 不认可注释式 fall-through，改用显式属性，不改变迁移逻辑。
+# Linux 内核已经定义 fallthrough 宏；不要在 __attribute__ 内使用同名标识符。
 ALLOWLIST_FILE="$KSU_DIR/kernel/policy/allowlist.c"
 if [ -f "$ALLOWLIST_FILE" ]; then
   python3 - "$ALLOWLIST_FILE" <<'PY'
@@ -147,11 +147,16 @@ import sys
 
 path = pathlib.Path(sys.argv[1])
 source = path.read_text()
-old = '        /* fall through */\n    case 3:'
-new = '        __attribute__((fallthrough));\n    case 3:'
-if old in source:
-    path.write_text(source.replace(old, new, 1))
-    print("allowlist.c: 已显式标记 profile 迁移 fall-through")
+old_patterns = (
+    '        /* fall through */\n    case 3:',
+    '        __attribute__((fallthrough));\n    case 3:',
+)
+new = '        fallthrough;\n    case 3:'
+for old in old_patterns:
+    if old in source:
+        path.write_text(source.replace(old, new, 1))
+        print("allowlist.c: 已使用 Linux fallthrough 宏标记 profile 迁移")
+        break
 else:
     print("allowlist.c: 无需修复 fall-through，跳过")
 PY
