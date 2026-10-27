@@ -137,4 +137,24 @@ else
   echo "lsm_hook.c 无 builtin setresuid 路径（main 分支已内置过滤模式），跳过 seccomp 过滤模式补丁"
 fi
 
+# SukiSU builtin 的 profile v2 -> v3 迁移必须继续执行 case 3。
+# 部分 GKI Clang 不认可注释式 fall-through，改用显式属性，不改变迁移逻辑。
+ALLOWLIST_FILE="$KSU_DIR/kernel/policy/allowlist.c"
+if [ -f "$ALLOWLIST_FILE" ]; then
+  python3 - "$ALLOWLIST_FILE" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+source = path.read_text()
+old = '        /* fall through */\n    case 3:'
+new = '        __attribute__((fallthrough));\n    case 3:'
+if old in source:
+    path.write_text(source.replace(old, new, 1))
+    print("allowlist.c: 已显式标记 profile 迁移 fall-through")
+else:
+    print("allowlist.c: 无需修复 fall-through，跳过")
+PY
+fi
+
 echo "SukiSU API 兼容补丁处理完成"
