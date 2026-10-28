@@ -1370,6 +1370,13 @@ jobs:
             echo "[*] ${AVER}-${KVER} 无 BBRv3 backport，使用 BBR v1"
           fi
 
+          # 5.15.41 等旧内核缺少 tcp_snd_cwnd accessors（新 5.15 已回移），
+          # BBRv3 补丁默认依赖它们；仅在缺失时补齐。
+          if [ -n "$BBR3_PATCH" ] && ! grep -q 'tcp_snd_cwnd' include/net/tcp.h; then
+            python3 "$GITHUB_WORKSPACE/scripts/net_compat/add_tcp_snd_cwnd.py" \
+              || net_fail "旧内核 tcp_snd_cwnd 兼容处理失败"
+          fi
+
           # 5.10 缺少 proc_dou8vec_minmax（BBRv3 依赖的 5.15+ sysctl API），补两个前置补丁
           if [ "$KVER" = "5.10" ] && ! grep -qF 'int proc_dou8vec_minmax(' include/linux/sysctl.h 2>/dev/null; then
             for prepatch in sysctl_add_proc_dou8vec_minmax sysctl_fix_data-races_in_proc_dou8vec_minmax; do
