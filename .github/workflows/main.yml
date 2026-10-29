@@ -57,7 +57,7 @@ on:
         default: ""
         required: false
       build_time:
-        description: "自定义构建时间 (留空=自动获取当前北京时间) (示例 Sun Dec  1 08:10:00 UTC 2026)"
+        description: "自定义构建时间 (留空=自动获取当前北京时间) (示例 Tue Dec  1 08:10:00 UTC 2026)"
         type: string
         default: ""
         required: false
