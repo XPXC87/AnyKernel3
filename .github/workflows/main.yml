@@ -697,7 +697,7 @@ jobs:
 
           | 文件类型 | 用途 |
           |:---|:---|
-          | \`*_kernel-*.zip\` | AnyKernel3 内核刷入包 |
+          | \`*-AnyKernel3.zip\` | AnyKernel3 内核刷入包 |
           | \`*.img\` | boot、vendor_boot 等镜像文件 |
           | \`*.apk\` | Root 管理器 |
           | \`susfs-*.zip\` | SUSFS 配套模块 |
@@ -832,9 +832,16 @@ jobs:
           # 避免多版本同名散文件（Image/anykernel.sh...）在 Release 上冲突报错；
           # 上传全部模式（目录内已有 zip + img）保持逐文件上传，互不影响。
           # --clobber 保证 job 重跑时同名资产覆盖而非报错。
-          for dir in ./downloaded-artifacts/*_kernel-*/; do
+          for dir in ./downloaded-artifacts/*/; do
             [ -d "$dir" ] || continue
-            [[ "$dir" == *-Rejects/ ]] && continue
+            dir="${dir%/}"
+            case "$dir/" in
+              *-Build-Logs/|*-Rejects/|*Manager*/|*susfs-*/) continue ;;
+            esac
+            # 只处理内核刷入包：仅上传模式含 anykernel.sh，上传全部模式含 *-AnyKernel3.zip
+            if [ ! -f "$dir/anykernel.sh" ] && ! ls "$dir"/*-AnyKernel3.zip >/dev/null 2>&1; then
+              continue
+            fi
             if ! ls "$dir"*.zip >/dev/null 2>&1; then
               (cd "$dir" && zip -r -q -9 "$(basename "$dir").zip" .)
               echo "上传 $(basename "$dir").zip..."
