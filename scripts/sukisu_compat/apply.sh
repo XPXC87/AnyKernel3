@@ -165,8 +165,7 @@ fi
 # SUSFS v2.3.0 新增 Priority UID Filter；旧 SukiSU Kconfig 未声明选项。
 # 只补齐 Kconfig 定义，不修改 SukiSU 上游 C 源码。
 KSU_KCONFIG="$KSU_DIR/kernel/Kconfig"
-if [ -f "$KSU_KCONFIG" ] && ! grep -q '^config KSU_SUSFS_PRIORITY_UID_FILTER
- "$KSU_KCONFIG"; then
+if [ -f "$KSU_KCONFIG" ] && ! grep -qF "config KSU_SUSFS_PRIORITY_UID_FILTER" "$KSU_KCONFIG"; then
   python3 - "$KSU_KCONFIG" <<'PY'
 from pathlib import Path
 import sys
