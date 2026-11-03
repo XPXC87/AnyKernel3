@@ -166,27 +166,8 @@ fi
 # 只补齐 Kconfig 定义，不修改 SukiSU 上游 C 源码。
 KSU_KCONFIG="$KSU_DIR/kernel/Kconfig"
 if [ -f "$KSU_KCONFIG" ] && ! grep -qF "config KSU_SUSFS_PRIORITY_UID_FILTER" "$KSU_KCONFIG"; then
-  python3 - "$KSU_KCONFIG" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text()
-anchor = 'config KSU_SUSFS_SUS_MAP'
-if anchor not in text:
-    raise SystemExit("::error::SukiSU Kconfig SUSFS section missing; cannot add Priority UID Filter")
-config = (
-    'config KSU_SUSFS_PRIORITY_UID_FILTER\n'
-    '\tbool "Enable SUSFS priority UID filter"\n'
-    '\tdepends on KSU_SUSFS\n'
-    '\tdefault y\n'
-    '\thelp\n'
-    '\t  Enable SUSFS priority UID filtering used by current SukiSU.\n\n'
-)
-text = text.replace(anchor, config + anchor, 1)
-path.write_text(text)
-print("SukiSU Kconfig: added SUSFS Priority UID Filter option")
-PY
+  python3 "$COMPAT_DIR/priority_kconfig.py" "$KSU_KCONFIG" \
+    || fail "SukiSU Kconfig Priority UID Filter 补丁失败"
 fi
 
 echo "SukiSU API 兼容补丁处理完成"
