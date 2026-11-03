@@ -170,6 +170,7 @@ from pathlib import Path
 import sys
 
 kernel = Path(sys.argv[1])
+guard = "CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER"
 targets = (
     ("manager/pkg_observer.c", "susfs_parse_priority_app_strings();"),
     ("supercall/dispatch.c", "susfs_set_priority_uid_filter(arg);"),
@@ -178,29 +179,41 @@ for relative, call in targets:
     path = kernel / relative
     if not path.is_file():
         continue
-    source = path.read_text()
-    if call not in source:
-        continue
-    guard = "#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER"
-    guarded = guard + "\n" + call + "\n#endif"
-    # Idempotent: do not re-wrap already guarded calls.
-    if guarded in source:
-        continue
-    lines = source.splitlines(keepends=True)
+    lines = path.read_text().splitlines(keepends=True)
     output = []
     count = 0
-    for line in lines:
+    for i, line in enumerate(lines):
         if line.strip() != call:
             output.append(line)
             continue
+        if i > 0 and lines[i - 1].strip() == f"#ifdef {guard}":
+            output.append(line)
+            continue
         indent = line[:len(line) - len(line.lstrip())]
-        output.extend((indent + guard + "\n",
-                       line,
-                       indent + "#endif // CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER\n"))
-        count += 1
+        if relative == "supercall/dispatch.c":
+            if not output or output[-1].strip() != "case CMD_SUSFS_SET_PRIORITY_UID_FILTER:":
+                raise SystemExit("SukiSU Priority UID Filter case layout changed")
+            case_line = output.pop()
+            output.extend((indent + f"#ifdef {guard}\n", case_line,
+                           line, indent + "    return 0;\n",
+                           indent + f"#endif // {guard}\n"))
+            # Original return 0 is removed below to avoid an unguarded return.
+            count += 1
+        else:
+            output.extend((indent + f"#ifdef {guard}\n",
+                           line, indent + f"#endif // {guard}\n"))
+            count += 1
+    if relative == "supercall/dispatch.c" and count:
+        text = "".join(output)
+        marker = f"#endif // {guard}\n            return 0;\n"
+        if marker not in text:
+            raise SystemExit("SukiSU Priority UID Filter return layout changed")
+        text = text.replace(marker, f"#endif // {guard}\n", 1)
+    else:
+        text = "".join(output)
     if count:
-        path.write_text("".join(output))
-        print(f"{relative}: 已为 {count} 处 Priority UID Filter 调用添加条件编译保护")
+        path.write_text(text)
+        print(f"{relative}: 已保护 {count} 处 Priority UID Filter 调用")
 PY
 
 echo "SukiSU API 兼容补丁处理完成"
