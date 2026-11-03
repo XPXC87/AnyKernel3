@@ -162,4 +162,45 @@ else:
 PY
 fi
 
+# SukiSU 新版无条件调用 SUSFS Priority UID Filter，但旧版 SUSFS 和
+# 未启用 CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER 的内核不会声明这些接口。
+# 按 SUSFS 头文件的条件编译门控调用，保留支持该功能时的原有行为。
+python3 - "$KSU_DIR/kernel" <<'PY'
+from pathlib import Path
+import sys
+
+kernel = Path(sys.argv[1])
+targets = (
+    ("manager/pkg_observer.c", "susfs_parse_priority_app_strings();"),
+    ("supercall/dispatch.c", "susfs_set_priority_uid_filter(arg);"),
+)
+for relative, call in targets:
+    path = kernel / relative
+    if not path.is_file():
+        continue
+    source = path.read_text()
+    if call not in source:
+        continue
+    guard = "#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER"
+    guarded = guard + "\n" + call + "\n#endif"
+    # Idempotent: do not re-wrap already guarded calls.
+    if guarded in source:
+        continue
+    lines = source.splitlines(keepends=True)
+    output = []
+    count = 0
+    for line in lines:
+        if line.strip() != call:
+            output.append(line)
+            continue
+        indent = line[:len(line) - len(line.lstrip())]
+        output.extend((indent + guard + "\n",
+                       line,
+                       indent + "#endif // CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER\n"))
+        count += 1
+    if count:
+        path.write_text("".join(output))
+        print(f"{relative}: 已为 {count} 处 Priority UID Filter 调用添加条件编译保护")
+PY
+
 echo "SukiSU API 兼容补丁处理完成"
