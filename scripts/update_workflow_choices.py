@@ -44,6 +44,19 @@ VERSIONS = {
     "a17_6_18": "android17/6.18",
 }
 
+# kernel-custom.yml intentionally exposes one sub-level selector per kernel
+# version (sub_level_5_10, sub_level_5_15, etc.), not per Android version.
+# Keep this legacy public interface: multiple Android generations can share
+# the same kernel version, while MATRIX_FILES continues to update all
+# individual Android-version build workflows.
+CHOICE_VERSIONS = {
+    "5_10": "android12/5.10",
+    "5_15": "android13/5.15",
+    "6_1": "android14/6.1",
+    "6_6": "android15/6.6",
+    "6_12": "android16/6.12",
+}
+
 MATRIX_FILES = {
     "android12/5.10": "kernel-a12-5-10.yml",
     "android13/5.10": "kernel-a13-5-10.yml",
@@ -239,7 +252,7 @@ def main() -> int:
     text = WORKFLOW.read_text(encoding="utf-8")
     any_changed = False
 
-    for key, rel in VERSIONS.items():
+    for key, rel in CHOICE_VERSIONS.items():
         data_file = ROOT / "data" / f"{rel}.json"
         if not data_file.exists():
             print(f"::error::data file not found: {data_file}", file=sys.stderr)
