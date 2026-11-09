@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   update-data:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # GITHUB_TOKEN 永远无法推送 .github/workflows 变更（官方不提供
       # workflow scope，防止 Actions 自我修改），必须用带 workflow
@@ -29,7 +29,7 @@ jobs:
         with:
           token: ${{ secrets.WORKFLOW_PUSH_TOKEN || github.token }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
