@@ -136,4 +136,30 @@ else
   echo "SukiSU 源码无注释式 fall-through，跳过"
 fi
 
+# ---- selinux/rules.c: 上游 builtin 分支的两处编译错误 ----
+# 1) reset_avc_cache() 的 6.4+ 分支把参数写成 seqno0（未声明），应为 seqno；
+# 2) apply_kernelsu_rules() 中的 policydb->latest_granting 引用了未声明的变量，
+#    该作用域只有 pol（struct selinux_policy *）与 db，clang 会把 policydb
+#    当成结构体标签并报 must use 'struct' tag。按上下文改为 pol->latest_granting。
+# 两处均按内容检测，上游修复后自动跳过。
+RULES_FILE="$KSU_DIR/kernel/selinux/rules.c"
+if [ -f "$RULES_FILE" ]; then
+  if grep -qF 'selinux_status_update_policyload(seqno0)' "$RULES_FILE"; then
+    sed -i 's/selinux_status_update_policyload(seqno0)/selinux_status_update_policyload(seqno)/' "$RULES_FILE"
+    echo "rules.c: 修正 seqno0 笔误"
+  fi
+  if grep -qE '^[[:space:]]*policydb->latest_granting = old_pol->latest_granting \+ 1;' "$RULES_FILE"; then
+    sed -i 's/^\([[:space:]]*\)policydb->latest_granting = old_pol->latest_granting + 1;/\1pol->latest_granting = old_pol->latest_granting + 1;/' "$RULES_FILE"
+    echo "rules.c: 修正未声明的 policydb 变量"
+  fi
+  if grep -qF 'seqno0' "$RULES_FILE"; then
+    fail "rules.c seqno0 修正失败"
+  fi
+  if grep -qE '^[[:space:]]*policydb->latest_granting' "$RULES_FILE"; then
+    fail "rules.c policydb 变量修正失败"
+  fi
+else
+  echo "未找到 selinux/rules.c，跳过 rules.c 修正"
+fi
+
 echo "SukiSU API 兼容补丁处理完成"
