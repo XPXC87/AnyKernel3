@@ -170,4 +170,25 @@ if [ -f "$KSU_KCONFIG" ] && ! grep -qF "config KSU_SUSFS_PRIORITY_UID_FILTER" "$
     || fail "SukiSU Kconfig Priority UID Filter 补丁失败"
 fi
 
+RULES_FILE="$KSU_DIR/kernel/selinux/rules.c"
+if [ -f "$RULES_FILE" ]; then
+  if grep -qF 'selinux_status_update_policyload(seqno0)' "$RULES_FILE"; then
+    sed -i 's/selinux_status_update_policyload(seqno0)/selinux_status_update_policyload(seqno)/' "$RULES_FILE"
+    echo "rules.c: 修正 seqno0 笔误"
+  fi
+  if grep -qE '^[[:space:]]*policydb->latest_granting = old_pol->latest_granting \+ 1;' "$RULES_FILE"; then
+    sed -i 's/^\([[:space:]]*\)policydb->latest_granting = old_pol->latest_granting + 1;/\1pol->latest_granting = old_pol->latest_granting + 1;/' "$RULES_FILE"
+    echo "rules.c: 修正未声明的 policydb 变量"
+  fi
+  if grep -qF 'seqno0' "$RULES_FILE"; then
+    fail "rules.c seqno0 修正失败"
+  fi
+  if grep -qE '^[[:space:]]*policydb->latest_granting' "$RULES_FILE"; then
+    fail "rules.c policydb 变量修正失败"
+  fi
+else
+  echo "未找到 selinux/rules.c，跳过 rules.c 修正"
+fi
+
+
 echo "SukiSU API 兼容补丁处理完成"
