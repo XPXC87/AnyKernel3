@@ -35,6 +35,11 @@ on:
         required: false
         type: string
         default: "正式 (Release)"
+      manager_version:
+        description: "versionCode of the exact Manager APK selected by get-manager"
+        required: false
+        type: string
+        default: ""
       ksu_commit:
         description: "BakaSU 专用：KernelSU 检出到该提交以对齐官方最新上传构建（留空跟随 main HEAD）"
         required: false
@@ -135,6 +140,7 @@ jobs:
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
       SKIP_INCOMPATIBLE: ${{ inputs.skip_incompatible }}
+      MANAGER_VERSION: ${{ inputs.manager_version }}
 
     steps:
       - name: 构建信息摘要
@@ -543,6 +549,10 @@ jobs:
           case "${{ inputs.ksu_variant }}" in
             "SukiSU-Nova")
               echo "添加 ${{ inputs.ksu_variant }}..."
+              if ! [[ "${MANAGER_VERSION:-}" =~ ^[0-9]+$ ]]; then
+                echo "::error::未取得有效的 SukiSU-Nova Manager versionCode，拒绝构建未对齐的内核"
+                exit 1
+              fi
               curl -fLSs --retry 3 --retry-all-errors "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/main/kernel/setup.sh" | sed 's#https://git.zako.shirkneko.top:20004/shirkneko/SukiSU#https://github.com/SukiSU-Nova/SukiSU-Nova.git#g' | bash -s -- "$BRANCH"
               # 内核侧 KSU 版本来源对齐官方最新上传 Manager 构建：
               # SukiSU-Nova 版本号 = 30000 + main 提交数 + 996
@@ -698,7 +708,9 @@ jobs:
         working-directory: ${{ env.KERNEL_ROOT }}
         run: |
           KSU_VERSION=""
-          if [ -n "${{ inputs.ksu_commit }}" ] && [ -d KernelSU/.git ]; then
+          if [ "${{ inputs.ksu_variant }}" = "SukiSU-Nova" ] && [[ "${MANAGER_VERSION:-}" =~ ^[0-9]+$ ]]; then
+            KSU_VERSION="$MANAGER_VERSION"
+          elif [ -n "${{ inputs.ksu_commit }}" ] && [ -d KernelSU/.git ]; then
             KSU_COUNT=$(git -C KernelSU rev-list --count "${{ inputs.ksu_commit }}" 2>/dev/null || echo "")
             if [ -n "$KSU_COUNT" ]; then
               case "${{ inputs.ksu_variant }}" in
@@ -1919,6 +1931,20 @@ jobs:
               echo "退出码: $BUILD_STATUS"
             } >> "$LOG_FILE"
             exit "$BUILD_STATUS"
+
+      - name: 验证 SukiSU-Nova 内核与管理器版本
+        if: ${{ inputs.ksu_variant == 'SukiSU-Nova' && inputs.ksu_mode != '禁用KSU' && steps.compile_kernel.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${MANAGER_VERSION:-}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Manager versionCode 无效，无法验证内核版本"
+            exit 1
+          fi
+          if ! grep -hE -- "-- SukiSU-Nova version: ${MANAGER_VERSION}([[:space:]]|$)" "$GITHUB_WORKSPACE"/build-logs/compile-attempt-*.log; then
+            echo "::error::编译出的 SukiSU-Nova KSU_VERSION 与 Manager 不一致，预期 ${MANAGER_VERSION}"
+            exit 1
+          fi
+          echo "版本对齐验证通过：Manager=${MANAGER_VERSION}, KernelSU=${MANAGER_VERSION}"
 
       - name: 整理编译失败日志
         if: ${{ always() && steps.compile_kernel.outcome == 'failure' }}
