@@ -554,7 +554,7 @@ jobs:
               fi
               if [ -n "$KSU_COMMIT" ] && [ "$BRANCH" != "main" ] && [ "$BRANCH" != "builtin" ]; then
                 echo "SukiSU-Nova 使用自定义提交（$BRANCH），跳过管理器版本对齐"
-              elif [ -n "$KSU_COMMIT" ]; then
+              elif [ -n "$KSU_COMMIT" ] && [ "$BRANCH" != "builtin" ]; then
                 if ! git -C KernelSU fetch origin "$KSU_COMMIT" 2>/dev/null; then
                   echo "官方构建提交 $KSU_COMMIT 已存在于本地克隆，跳过 fetch"
                 fi
