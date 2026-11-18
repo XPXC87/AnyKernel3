@@ -199,7 +199,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -218,7 +218,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 13 - 5.10 构建 ====================
   build-a13-5-10:
@@ -230,7 +229,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -249,7 +248,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 13 - 5.15 构建 ====================
   build-a13-5-15:
@@ -261,7 +259,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -280,7 +278,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 14 - 5.15 构建 ====================
   build-a14-5-15:
@@ -292,7 +289,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -311,7 +308,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 14 - 6.1 构建 ====================
   build-a14-6-1:
@@ -323,7 +319,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -342,7 +338,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 15 - 6.6 构建 ====================
   build-a15-6-6:
@@ -354,7 +349,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -373,7 +368,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 16 - 6.12 构建 ====================
   build-a16-6-12:
@@ -385,7 +379,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -403,7 +397,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== Android 17 - 6.18 构建 ====================
   build-a17-6-18:
@@ -415,7 +408,7 @@ jobs:
     with:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
-      manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      manager_version: ${{ needs.get-manager.outputs.manager_version }}
       called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
@@ -433,7 +426,6 @@ jobs:
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
       droidspaces_ntsync: ${{ contains(inputs.droidspaces, 'NTSync') }}
       skip_incompatible: ${{ inputs.skip_incompatible || false }}
-      called_from_main: true
 
   # ==================== 收集补丁冲突文件 ====================
   # 汇总所有构建任务中的 .rej 文件，方便调试补丁问题
@@ -601,7 +593,7 @@ jobs:
 
           # 版本信息（内核侧已对齐官方上传构建时，实际内核 KSU 版本 = managerVer，
           # managerVer 为空（管理器拉取失败）时回退 ksuVer）
-          KSU_VER="${{ needs.get-manager.outputs.managerVer }}"
+          KSU_VER="${{ needs.get-manager.outputs.manager_version }}"
           if [ -z "$KSU_VER" ]; then
             KSU_VER="${{ needs.get-manager.outputs.ksuVer }}"
           fi
