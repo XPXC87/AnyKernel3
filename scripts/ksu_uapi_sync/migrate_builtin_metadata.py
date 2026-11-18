@@ -5,6 +5,14 @@ import re
 import sys
 
 API = "https://git.zako.shirkneko.top:20004/api/v1/repos/$(REPO_OWNER)/$(REPO_NAME)"
+MANAGER_VERSION = os.environ.get("MANAGER_VERSION", "").strip()
+if MANAGER_VERSION.isdigit():
+    KSU_VERSION_REPLACEMENT = f"KSU_VERSION     := {MANAGER_VERSION}"
+else:
+    KSU_VERSION_REPLACEMENT = (
+        "KSU_VERSION     := $(if $(LOCAL_COUNT),"
+        "$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) + $(VERSION_OFFSET)),$(VERSION_BASE))"
+    )
 replacements = {
     "REPO_OWNER": "REPO_OWNER  := shirkneko",
     "REPO_NAME": "REPO_NAME   := SukiSU",
@@ -16,10 +24,7 @@ replacements = {
         "| tr -d '\\r' | sed -n 's/^[Xx]-[Tt]otal-[Cc]ount:[[:space:]]*\\([0-9]*\\).*/\\1/p')"
     ),
     "LOCAL_COUNT": "LOCAL_COUNT     := $(if $(RELEASE_COMMITS),$(RELEASE_COMMITS),$(git_commit_count))",
-    "KSU_VERSION": (
-        f"KSU_VERSION     := {os.environ['MANAGER_VERSION'].strip()}" if os.environ.get("MANAGER_VERSION", "").strip().isdigit() else "KSU_VERSION     := $(if $(LOCAL_COUNT),"
-        "$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) + $(VERSION_OFFSET)),$(VERSION_BASE))"
-    ),
+    "KSU_VERSION": KSU_VERSION_REPLACEMENT,
     "KSU_GITHUB_VER": (
         'KSU_RELEASE_VER  := $(shell $(CURL_BIN) -s "$(RELEASE_API_BASE)/releases/latest" '
         "2>/dev/null | grep -o '\"tag_name\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4 | sed 's/^v//')"
