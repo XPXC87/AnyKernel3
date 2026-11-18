@@ -17,7 +17,7 @@ if [ "$ROLLING" = false ]; then
       | select((.draft | not) and (.prerelease | not))
       | select(.tag_name | test("(?i)^(manager-ci|manager_ci|nightly|latest|ci)$") | not)
       | select(any(.assets[]?;
-          (.name | test("release\.apk$"; "i")) and
+          (.name | test("release[.]apk$"; "i")) and
           (.name | test("(?i)debug|spoofed") | not))) ]
     | .[0] // empty
   ')
@@ -61,7 +61,7 @@ for ATTEMPT in $(seq 1 "$MAX_ATTEMPTS"); do
   TAG=$(printf '%s' "$RELEASE" | jq -r '.tag_name')
   ASSETS=$(printf '%s' "$RELEASE" | jq -r '
     [ .assets[]?
-      | select(.name | test("release\.apk$"; "i"))
+      | select(.name | test("release[.]apk$"; "i"))
       | select(.name | test("(?i)debug|spoofed") | not) ]
     | sort_by(if (.name | test("(?i)universal")) then 0
               elif (.name | test("(?i)arm64-v8a")) then 1 else 2 end)
@@ -79,7 +79,7 @@ for ATTEMPT in $(seq 1 "$MAX_ATTEMPTS"); do
 
   IFS=$'\t' read -r APK_NAME _ <<< "$(printf '%s\n' "$ASSETS" | head -n 1)"
   APK_NAME="${APK_NAME%$'\r'}"
-  if [[ "$APK_NAME" =~ _([0-9]+)(-(arm64-v8a|armeabi-v7a|armv7|riscv64|x86_64|x86|universal))?-release\.apk$ ]]; then
+  if [[ "$APK_NAME" =~ _([0-9]+)(-(arm64-v8a|armeabi-v7a|armv7|riscv64|x86_64|x86|universal))?-release[.]apk$ ]]; then
     VERSION="${BASH_REMATCH[1]}"
   else
     echo "::error::无法从 SukiSU-Nova APK 文件名解析版本: $APK_NAME"
