@@ -543,7 +543,7 @@ jobs:
           case "${{ inputs.ksu_variant }}" in
             "SukiSU-Nova")
               echo "添加 ${{ inputs.ksu_variant }}..."
-              curl -LSs "https://git.zako.shirkneko.top:20004/shirkneko/SukiSU/raw/branch/main/kernel/setup.sh" | bash -s -- "$BRANCH"
+              curl -fLSs --retry 3 --retry-all-errors "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/main/kernel/setup.sh" | sed 's#https://git.zako.shirkneko.top:20004/shirkneko/SukiSU#https://github.com/SukiSU-Nova/SukiSU-Nova.git#g' | bash -s -- "$BRANCH"
               # 内核侧 KSU 版本来源对齐官方最新上传 Manager 构建：
               # SukiSU-Nova 版本号 = 30000 + main 提交数 + 996
               #（main 分支定义在 kernel/Kbuild；builtin 分支仍使用旧版公式）。
