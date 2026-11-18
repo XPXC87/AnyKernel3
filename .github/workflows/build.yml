@@ -1939,7 +1939,7 @@ jobs:
             echo "::error::Manager versionCode 无效，无法验证内核版本"
             exit 1
           fi
-          if ! grep -hE -- "-- SukiSU-Nova version: ${MANAGER_VERSION}([[:space:]]|$)" "$GITHUB_WORKSPACE"/build-logs/compile-attempt-*.log; then
+          if ! grep -hE -- "-- SukiSU(-Nova)? version: ${MANAGER_VERSION}([[:space:]]|$)" "$GITHUB_WORKSPACE"/build-logs/compile-attempt-*.log; then
             echo "::error::编译出的 SukiSU-Nova KSU_VERSION 与 Manager 不一致，预期 ${MANAGER_VERSION}"
             exit 1
           fi
