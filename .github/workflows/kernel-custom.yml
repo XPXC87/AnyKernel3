@@ -562,6 +562,8 @@ jobs:
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
+      # SukiSU-Nova 必须取得所选 Manager APK 的实测 versionCode，供内核版本强制对齐
+      manager_version: ${{ needs.get-ksu-manager.outputs.manager_version }}
       # 内核侧 KernelSU 检出到官方最新上传 Manager 构建的同一提交，
       # 使内核 KSU 版本与拉取的管理器安装包严格一致（BakaSU / FinaSU 生效）
       ksu_commit: ${{ needs.get-ksu-manager.outputs.ksuCommit }}
