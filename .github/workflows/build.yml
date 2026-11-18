@@ -554,12 +554,11 @@ jobs:
                 exit 1
               fi
               curl -fLSs --retry 3 --retry-all-errors "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/main/kernel/setup.sh" | sed 's#https://git.zako.shirkneko.top:20004/shirkneko/SukiSU#https://github.com/SukiSU-Nova/SukiSU-Nova.git#g' | bash -s -- "$BRANCH"
-              # 内核侧 KSU 版本来源对齐官方最新上传 Manager 构建：
-              # SukiSU-Nova 版本号 = 30000 + main 提交数 + 996
-              #（main 分支定义在 kernel/Kbuild；builtin 分支仍使用旧版公式）。
-              # 将 REPO_BRANCH 改写为管理器构建提交，保证内核 KSU 版本与拉取的管理器安装包严格一致
+              # Manager APK 的實測 versionCode 是 SukiSU-Nova 內核版本的唯一對齊基準。
+              # main 分支依官方構建提交計算版本；builtin 分支保留手動 Hook 源碼，
+              # 但由 migrate_builtin_metadata.py 將 KSU_VERSION 固定為相同的 Manager versionCode。
               if [ "$BRANCH" = "builtin" ]; then
-                # builtin 仍使用旧仓库的元数据；保持源码分支，只把版本标识迁移到新上游。
+                # 保留 builtin 的舊倉庫元數據與手動 Hook 源碼，只同步版本標識。
                 python3 "$GITHUB_WORKSPACE/scripts/ksu_uapi_sync/migrate_builtin_metadata.py" KernelSU/kernel/Makefile
               fi
               if [ -n "$KSU_COMMIT" ] && [ "$BRANCH" != "main" ] && [ "$BRANCH" != "builtin" ]; then
