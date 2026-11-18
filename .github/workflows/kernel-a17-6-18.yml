@@ -192,7 +192,8 @@ jobs:
   build-kernels-a17-6-18:
     name: "6.18.${{ matrix.display_sub || matrix.sub_level }}-${{ matrix.os_patch_level }}"
     needs: get-ksu-manager
-    if: ${{ !cancelled() }}
+    # 从 main.yml 调用时，管理器已由主工作流获取；不能因本地 get-ksu-manager 被跳过而跳过矩阵构建
+    if: ${{ always() && !cancelled() && (inputs.called_from_main || needs.get-ksu-manager.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
