@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import pathlib
 import re
 import sys
@@ -16,7 +17,7 @@ replacements = {
     ),
     "LOCAL_COUNT": "LOCAL_COUNT     := $(if $(RELEASE_COMMITS),$(RELEASE_COMMITS),$(git_commit_count))",
     "KSU_VERSION": (
-        "KSU_VERSION     := $(if $(LOCAL_COUNT),"
+        f"KSU_VERSION     := {os.environ['MANAGER_VERSION'].strip()}" if os.environ.get("MANAGER_VERSION", "").strip().isdigit() else "KSU_VERSION     := $(if $(LOCAL_COUNT),"
         "$(shell expr $(VERSION_BASE) + $(LOCAL_COUNT) + $(VERSION_OFFSET)),$(VERSION_BASE))"
     ),
     "KSU_GITHUB_VER": (
