@@ -88,6 +88,10 @@ on:
         description: "官方 Manager 构建的实测版本号"
         value: ${{ jobs.get_ksu_manager.outputs.managerVer }}
 
+      manager_version:
+        description: "Manager APK versionCode for kernel alignment"
+        value: ${{ jobs.get_ksu_manager.outputs.manager_version }}
+
       ksuCommit:
         description: "内核侧对齐用的提交 SHA（正式通道=Release 标签提交；最新通道=所选 CI 构建提交或 HEAD）"
         value: ${{ jobs.get_ksu_manager.outputs.ksuCommit }}
@@ -114,6 +118,7 @@ jobs:
       susVer: ${{ steps.get_version.outputs.sversion }}
       # 输出3: Manager 实测版本号
       managerVer: ${{ steps.add_KSU.outputs.managerVer }}
+      manager_version: ${{ steps.add_KSU.outputs.managerVer }}
       # 输出4: 内核侧对齐用的提交 SHA（正式通道=Release 标签提交；最新通道=空）
       ksuCommit: ${{ steps.add_KSU.outputs.ksuCommit }}
       # 输出5: 正式通道选用的 Release 标签
