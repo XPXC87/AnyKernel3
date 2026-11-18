@@ -173,6 +173,11 @@ on:
         required: false
         type: boolean
         default: false
+      manager_version:
+        description: "Manager APK versionCode from the matching manager build"
+        required: false
+        type: string
+        default: ""
       ksu_commit:
         description: "官方最新上传构建的 KernelSU 提交（从 main.yml 传入；直接触发时自动取本工作流拉取的管理器构建）"
         required: false
@@ -252,6 +257,7 @@ jobs:
       os_patch_level: ${{ matrix.os_patch_level }}
       ksu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
+      manager_version: ${{ inputs.manager_version || needs.get-ksu-manager.outputs.managerVer }}
       ksu_commit: ${{ inputs.ksu_commit || needs.get-ksu-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ inputs.ksu_cert_size || needs.get-ksu-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ inputs.ksu_cert_hash || needs.get-ksu-manager.outputs.managerCertHash }}
