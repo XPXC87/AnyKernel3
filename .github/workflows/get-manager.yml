@@ -353,7 +353,7 @@ jobs:
       - name: 添加 KernelSU
         id: add_KSU
         if: inputs.ksu_mode != '禁用KSU'
-        continue-on-error: true
+        continue-on-error: ${{ inputs.kernelsu_variant != 'SukiSU-Nova' }}
         run: |
           VARIANT="${{ inputs.kernelsu_variant }}"
 
