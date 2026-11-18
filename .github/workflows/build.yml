@@ -553,7 +553,7 @@ jobs:
                 echo "::error::未取得有效的 SukiSU-Nova Manager versionCode，拒绝构建未对齐的内核"
                 exit 1
               fi
-              curl -fLSs --retry 3 --retry-all-errors "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/main/kernel/setup.sh" | sed 's#https://git.zako.shirkneko.top:20004/shirkneko/SukiSU#https://github.com/SukiSU-Nova/SukiSU-Nova.git#g' | bash -s -- "$BRANCH"
+              curl -fLSs --retry 3 --retry-all-errors "https://raw.githubusercontent.com/SukiSU-Nova/SukiSU-Nova/main/kernel/setup.sh" | bash -s -- "$BRANCH"
               # Manager APK 的實測 versionCode 是 SukiSU-Nova 內核版本的唯一對齊基準。
               # main 分支依官方構建提交計算版本；builtin 分支保留手動 Hook 源碼，
               # 但由 migrate_builtin_metadata.py 將 KSU_VERSION 固定為相同的 Manager versionCode。
