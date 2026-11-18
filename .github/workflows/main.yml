@@ -200,6 +200,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -230,6 +231,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -260,6 +262,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -290,6 +293,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -320,6 +324,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -350,6 +355,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -380,6 +386,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
@@ -409,6 +416,7 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       build_channel: ${{ inputs.build_channel }}
       manager_version: ${{ needs.get-manager.outputs.managerVer }}
+      called_from_main: true
       ksu_commit: ${{ needs.get-manager.outputs.ksuCommit }}
       ksu_cert_size: ${{ needs.get-manager.outputs.managerCertSize }}
       ksu_cert_hash: ${{ needs.get-manager.outputs.managerCertHash }}
