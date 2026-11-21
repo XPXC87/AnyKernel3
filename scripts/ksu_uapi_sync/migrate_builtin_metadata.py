@@ -21,7 +21,7 @@ replacements = {
     ),
     "KSU_GITHUB_VER": (
         'KSU_RELEASE_VER  := $(shell $(CURL_BIN) -s "$(RELEASE_API_BASE)/releases/latest" '
-        "2>/dev/null | grep -o '\\\"tag_name\\\":\\\"[^\\\"]*\\\"' | head -1 | cut -d'\\\"' -f4 | sed 's/^v//')"
+        "2>/dev/null | grep -o '\"tag_name\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4 | sed 's/^v//')"
     ),
     "VERSION_TAG": "VERSION_TAG     := $(or $(KSU_RELEASE_VER),$(git_latest_tag),3.0.0)",
 }
