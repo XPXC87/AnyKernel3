@@ -290,6 +290,74 @@ python3 "$SCRIPT_DIR/normalize_trace_ctx.py" "$SUSFS_PATCH"
 
 patch -p1 < "$SUSFS_PATCH" || true
 
+# ==================== SukiSU-Nova：恢復 SUSFS 遺失的 SELinux hide hooks ====================
+# SUSFS/KSU 整合補丁在部分上游版本會移除 selinux_hide.c 的三個隱藏入口，
+# 導致 /sys/fs/selinux/context、/sys/fs/selinux/access 與
+# /proc/self/attr/current 的檢查不再走 KernelSU 的隱藏實作。
+# 只在 SukiSU-Nova 使用：若整合後入口不完整，從本次實際檢出的上游 HEAD
+# 還原原始實作，再保留 SUSFS 所需的全域執行狀態符號。
+restore_sukisu_selinux_hide() {
+  [ "$KSU_VARIANT" = "SukiSU-Nova" ] || return 0
+
+  local KSU_HIDE="$KERNEL_ROOT/KernelSU/kernel/feature/selinux_hide.c"
+  local KSU_REPO="$KERNEL_ROOT/KernelSU"
+  local TMP_HIDE
+  local SYM
+
+  if [ ! -f "$KSU_HIDE" ] || [ ! -d "$KSU_REPO/.git" ]; then
+    echo "::error::SukiSU-Nova SELinux hide 修復失敗：找不到 KernelSU Git 工作樹或 selinux_hide.c"
+    return 1
+  fi
+
+  selinux_hide_has_hooks() {
+    local src="$1"
+    local name
+    for name in my_write_context my_write_access my_setprocattr; do
+      grep -Eq "^[[:space:]]*(static[[:space:]]+)?(ssize_t|int)[[:space:]]+${name}[[:space:]]*\\(" "$src" || return 1
+    done
+  }
+
+  if ! selinux_hide_has_hooks "$KSU_HIDE"; then
+    echo "SukiSU-Nova selinux_hide.c 缺少隱藏入口，從已鎖定的上游提交還原..."
+    TMP_HIDE=$(mktemp)
+    if ! git -C "$KSU_REPO" show HEAD:kernel/feature/selinux_hide.c > "$TMP_HIDE"; then
+      rm -f "$TMP_HIDE"
+      echo "::error::無法從 SukiSU-Nova HEAD 還原 kernel/feature/selinux_hide.c"
+      return 1
+    fi
+    if ! selinux_hide_has_hooks "$TMP_HIDE"; then
+      rm -f "$TMP_HIDE"
+      echo "::error::目前 SukiSU-Nova 上游版本不含完整 SELinux hide hooks，停止建置以避免產生失效核心"
+      return 1
+    fi
+    cat "$TMP_HIDE" > "$KSU_HIDE"
+    rm -f "$TMP_HIDE"
+    echo "已還原 my_write_context / my_write_access / my_setprocattr"
+  else
+    echo "SukiSU-Nova SELinux hide 三個入口完整，保留現有實作"
+  fi
+
+  # SUSFS 核心側需要讀取此狀態；不可保留 static 內部連結。
+  if grep -qE '^[[:space:]]*static[[:space:]]+bool[[:space:]]+ksu_selinux_hide_running([[:space:]]|$)' "$KSU_HIDE"; then
+    sed -i -E 's/^([[:space:]]*)static([[:space:]]+bool[[:space:]]+ksu_selinux_hide_running)/\\1\\2/' "$KSU_HIDE"
+  fi
+
+  if grep -qE '^[[:space:]]*static[[:space:]]+bool[[:space:]]+ksu_selinux_hide_running([[:space:]]|$)' "$KSU_HIDE"; then
+    echo "::error::ksu_selinux_hide_running 仍為 static，SUSFS SELinux hook 無法連結"
+    return 1
+  fi
+
+  for SYM in my_write_context my_write_access my_setprocattr; do
+    grep -Eq "^[[:space:]]*(static[[:space:]]+)?(ssize_t|int)[[:space:]]+${SYM}[[:space:]]*\\(" "$KSU_HIDE" || {
+      echo "::error::SELinux hide 入口遺失：${SYM}"
+      return 1
+    }
+  done
+  echo "SukiSU-Nova SELinux hide hooks 驗證通過"
+}
+
+restore_sukisu_selinux_hide
+
 # ==================== SUSFS：SELinux 钩子不再拦截 sandbox uid ====================
 # 背景：susfs4ksu 主补丁的 SELinux 钩子条件写成 current_uid().val >= 10000，
 #   把 Android 的 isolated / webview sandbox（90000~99999，WebView 渲染进程是
