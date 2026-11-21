@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SukiSU-Nova SELinux Hide：開機自動強制啟用 + 6.1 KCFI/LTO LSM hook 相容修補
+# SukiSU-Nova SELinux Hide：開機自動啟用 + LSM hook 相容修補
 #
 # SELinux Hide 必須在 boot_completed 前啟用，否則上游會釋放 backup_sepolicy。
 # 本補丁把 selinux_hide 設為核心預設 forced feature，並保留 force_feature
@@ -17,14 +17,15 @@ KSU_DIR="$1"
 FEATURE_FILE="$KSU_DIR/kernel/policy/feature.c"
 HIDE_FILE="$KSU_DIR/kernel/feature/selinux_hide.c"
 LSM_FILE="$KSU_DIR/kernel/hook/lsm_hook.c"
-BOOT_EVENT_FILE="$KSU_DIR/kernel/runtime/boot_event.c"
+KSU_MAIN_FILE="$KSU_DIR/kernel/ksu_main.c"
+KSUD_FILE="$KSU_DIR/kernel/runtime/ksud.c"
 
 fail() {
   echo "::error::SukiSU-Nova SELinux Hide 自動啟用修補失敗：$1"
   exit 1
 }
 
-for f in "$FEATURE_FILE" "$HIDE_FILE" "$LSM_FILE" "$BOOT_EVENT_FILE"; do
+for f in "$FEATURE_FILE" "$HIDE_FILE" "$LSM_FILE" "$KSU_MAIN_FILE" "$KSUD_FILE"; do
   [ -f "$f" ] || fail "找不到必要來源檔案：$f"
 done
 
@@ -32,10 +33,12 @@ grep -q 'KSU_FEATURE_SELINUX_HIDE' "$FEATURE_FILE" \
   || fail "feature.c 不含 KSU_FEATURE_SELINUX_HIDE"
 grep -q 'ksu_register_feature_handler(&selinux_hide_handler)' "$HIDE_FILE" \
   || fail "selinux_hide.c 未註冊 SELinux Hide feature handler"
-grep -q 'ksu_feature_apply_forced();' "$BOOT_EVENT_FILE" \
-  || fail "boot_event.c 缺少 forced feature 開機套用/重試入口"
-grep -q 'ksu_selinux_hide_drop_backup_if_unused();' "$BOOT_EVENT_FILE" \
-  || fail "boot_event.c 缺少 backup_sepolicy 啟動生命週期管理"
+grep -q 'ksu_feature_apply_forced();' "$KSU_MAIN_FILE" \
+  || fail "ksu_main.c 缺少核心初始化時的 forced feature 套用入口"
+grep -q 'ksu_feature_apply_forced();' "$KSUD_FILE" \
+  || fail "ksud.c 缺少 second-stage / post-fs-data forced feature 重試入口"
+grep -q 'ksu_selinux_hide_drop_backup_if_unused();' "$KSUD_FILE" \
+  || fail "ksud.c 缺少 backup_sepolicy 啟動生命週期管理"
 
 echo "設定 SukiSU-Nova SELinux Hide 開機自動啟用..."
 python3 - "$FEATURE_FILE" <<'PYEOF'
@@ -79,6 +82,7 @@ for token in check:
 print("feature.c：SELinux Hide 已設為開機 forced=1")
 PYEOF
 
+if grep -q 'target_name' "$LSM_FILE" && grep -q 'security_hook_heads' "$LSM_FILE"; then
 echo "套用 SELinux setprocattr LSM 符號範圍相容修補..."
 python3 - "$LSM_FILE" <<'PYEOF'
 import pathlib
@@ -175,5 +179,8 @@ grep -q 'GKI_WORKFLOW_SELINUX_SETPROCATTR_RANGE_MATCH' "$LSM_FILE" \
   || fail "SELinux setprocattr LSM 相容標記缺失"
 grep -q 'origin_addr - target_addr < target_size' "$LSM_FILE" \
   || fail "SELinux setprocattr 符號範圍比對缺失"
+else
+  echo "目前 builtin 分支未使用 selinux_setprocattr 動態 LSM hlist hook，略過僅適用於該 hook 的 KCFI/LTO 修補"
+fi
 
-echo "SukiSU-Nova SELinux Hide 自動啟用與 LSM 相容修補完成"
+echo "SukiSU-Nova SELinux Hide 自動啟用修補完成"
