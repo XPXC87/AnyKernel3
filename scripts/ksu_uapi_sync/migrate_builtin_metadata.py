@@ -41,8 +41,8 @@ for key, replacement in replacements.items():
     pattern = re.compile(rf"^({'|'.join(re.escape(name) for name in candidates)})\\s*:=.*$")
     matched = False
     for index, line in enumerate(lines):
-        if pattern.match(line.rstrip("\\r\\n")):
-            ending = "\\r\\n" if line.endswith("\\r\\n") else "\\n"
+        if pattern.match(line.rstrip("\r\n")):
+            ending = "\\r\\n" if line.endswith("\r\n") else "\\n"
             lines[index] = replacement + ending
             matched = True
             break
