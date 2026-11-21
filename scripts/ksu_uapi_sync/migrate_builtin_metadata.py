@@ -27,7 +27,7 @@ replacements = {
 }
 
 # 新版 builtin 上游已将 GitHub 命名空间改为 RELEASE_*；
-# 同時兼容舊版 GITHUB_*，使迁移脚本可重复执行。
+# 同时兼容旧版 GITHUB_*，使迁移脚本可重复执行。
 aliases = {
     "GITHUB_API_BASE": ("GITHUB_API_BASE", "RELEASE_API_BASE"),
     "GITHUB_COMMITS": ("GITHUB_COMMITS", "RELEASE_COMMITS"),
@@ -38,11 +38,11 @@ path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "KernelSU/kernel/Makef
 lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
 for key, replacement in replacements.items():
     candidates = aliases.get(key, (key,))
-    pattern = re.compile(rf"^({'|'.join(re.escape(name) for name in candidates)})\\s*:=.*$")
+    pattern = re.compile(rf"^({'|'.join(re.escape(name) for name in candidates)})\s*:=.*$")
     matched = False
     for index, line in enumerate(lines):
         if pattern.match(line.rstrip("\r\n")):
-            ending = "\\r\\n" if line.endswith("\r\n") else "\\n"
+            ending = "\r\n" if line.endswith("\r\n") else "\n"
             lines[index] = replacement + ending
             matched = True
             break
