@@ -761,6 +761,13 @@ jobs:
           SUB_LEVEL: ${{ inputs.sub_level }}
         run: bash "$GITHUB_WORKSPACE/scripts/susfs_fixes/apply.sh"
           
+      # SukiSU-Nova SELinux Hide 必须在 boot_completed 前启用，避免 backup_sepolicy 被释放。
+      # 同时修复 6.1 ThinLTO/KCFI 下 selinux_setprocattr LSM hook 的符号别名匹配。
+      - name: 自动启用 SukiSU-Nova SELinux Hide
+        if: inputs.ksu_variant == 'SukiSU-Nova' && inputs.ksu_mode != '禁用KSU'
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: bash "$GITHUB_WORKSPACE/scripts/sukisu_compat/selinux_hide.sh" KernelSU
+
       - name: 克隆 Droidspaces 补丁仓库
         if: inputs.droidspaces != 'off'
         run: |
