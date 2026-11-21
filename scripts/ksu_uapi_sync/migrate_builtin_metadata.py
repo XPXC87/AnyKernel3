@@ -21,23 +21,32 @@ replacements = {
     ),
     "KSU_GITHUB_VER": (
         'KSU_RELEASE_VER  := $(shell $(CURL_BIN) -s "$(RELEASE_API_BASE)/releases/latest" '
-        "2>/dev/null | grep -o '\"tag_name\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4 | sed 's/^v//')"
+        "2>/dev/null | grep -o '\\\"tag_name\\\":\\\"[^\\\"]*\\\"' | head -1 | cut -d'\\\"' -f4 | sed 's/^v//')"
     ),
     "VERSION_TAG": "VERSION_TAG     := $(or $(KSU_RELEASE_VER),$(git_latest_tag),3.0.0)",
+}
+
+# 新版 builtin 上游已将 GitHub 命名空间改为 RELEASE_*；
+# 同時兼容舊版 GITHUB_*，使迁移脚本可重复执行。
+aliases = {
+    "GITHUB_API_BASE": ("GITHUB_API_BASE", "RELEASE_API_BASE"),
+    "GITHUB_COMMITS": ("GITHUB_COMMITS", "RELEASE_COMMITS"),
+    "KSU_GITHUB_VER": ("KSU_GITHUB_VER", "KSU_RELEASE_VER"),
 }
 
 path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "KernelSU/kernel/Makefile")
 lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
 for key, replacement in replacements.items():
-    pattern = re.compile(rf"^{key}\s*:=.*$")
+    candidates = aliases.get(key, (key,))
+    pattern = re.compile(rf"^({'|'.join(re.escape(name) for name in candidates)})\\s*:=.*$")
     matched = False
     for index, line in enumerate(lines):
-        if pattern.match(line.rstrip("\r\n")):
-            ending = "\r\n" if line.endswith("\r\n") else "\n"
+        if pattern.match(line.rstrip("\\r\\n")):
+            ending = "\\r\\n" if line.endswith("\\r\\n") else "\\n"
             lines[index] = replacement + ending
             matched = True
             break
     if not matched:
-        sys.exit(f"missing {key} in {path}")
+        sys.exit(f"missing {key} (or aliases: {', '.join(candidates)}) in {path}")
 
 path.write_text("".join(lines), encoding="utf-8", newline="")
