@@ -339,7 +339,7 @@ restore_sukisu_selinux_hide() {
 
   # SUSFS 核心側需要讀取此狀態；不可保留 static 內部連結。
   if grep -qE '^[[:space:]]*static[[:space:]]+bool[[:space:]]+ksu_selinux_hide_running([[:space:]]|$)' "$KSU_HIDE"; then
-    sed -i -E 's/^([[:space:]]*)static([[:space:]]+bool[[:space:]]+ksu_selinux_hide_running)/\\1\\2/' "$KSU_HIDE"
+    sed -i -E 's/^([[:space:]]*)static([[:space:]]+bool[[:space:]]+ksu_selinux_hide_running)/\1\2/' "$KSU_HIDE"
   fi
 
   if grep -qE '^[[:space:]]*static[[:space:]]+bool[[:space:]]+ksu_selinux_hide_running([[:space:]]|$)' "$KSU_HIDE"; then
